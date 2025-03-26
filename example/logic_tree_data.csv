@@ -1,0 +1,2 @@
+,replicate_threshold,CV_threshold,n_total_sample_occurence,n_missing_occurence,n_over_replicate,n_under_replicate,n_under_CV,n_over_CV,n_under_CV_over_MDL,n_under_CV_under_MDL,n_over_CV_over_MDL,n_over_CV_under_MDL
+0,2,0.5,19284,1481,17549,254,16701,848,10570,6131,559,289
