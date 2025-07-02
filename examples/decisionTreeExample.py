@@ -8,15 +8,24 @@ a rudimentary mock up for an occurence decision tree that show how many sample a
 filtered out at certain criteria (missing samples, replicate threshold,
 CV threshold, and MDL)
 '''
+from pathlib import Path
+import sys
+import os
+
+# Compute absolute path to the parent directory of examples/
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+    
 import matplotlib.font_manager as fm
 from matplotlib.patches import BoxStyle
 import pandas as pd
 
-from LogicTreeETC import LogicTree
+from logictree.LogicTreeETC import LogicTree
 
 def make_tree():
     # read in csv as pandas dataframe, we just want the sheet with the summation data
-    df = pd.read_csv('.\\logic_tree_data.csv')
+    df = pd.read_csv(f'{Path(__file__).resolve().parent}/logic_tree_data.csv')
 
     # set variables for filling the logic tree
     # first row of boxes for filling
@@ -208,7 +217,7 @@ def make_tree():
 
     # add title
     logic_tree.make_title(pos='left')
-    logic_tree.save_as_png(file_name='.\\logic_tree-sample_occurence03.png', dpi=900)
+    logic_tree.save_as_png(file_name='logic_tree-sample_occurence03-TEST.png', dpi=900)
 
 def check_for_font(font):
     font = font.lower()

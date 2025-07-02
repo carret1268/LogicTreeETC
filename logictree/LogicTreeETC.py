@@ -1,8 +1,8 @@
 from matplotlib.patches import BoxStyle
 import matplotlib.pyplot as plt
 
-from ArrowETC import ArrowETC
-from LogicBoxETC import LogicBox
+from .ArrowETC import ArrowETC
+from .LogicBoxETC import LogicBox
 
 class LogicTree:
     '''
@@ -71,7 +71,7 @@ class LogicTree:
         # default fontdict
         if font_dict is None:
             font_dict = {
-                'fontname': 'Leelawadee UI',
+                'fontname': 'Leelawadee',
                 'fontsize': 14,
                 'color': 'white'
             }
