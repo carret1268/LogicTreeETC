@@ -12,6 +12,8 @@ This package was created because existing matplotlib arrow tools, such as `Fancy
 
 LogicTreeETC fills this gap by providing an intuitive API for positioning labeled boxes and drawing arrows between them, enabling easy creation of clear and accurate logic tree diagrams.
 
+![Logic Tree Example 0](./examples/logic_tree-sample_occurence03.png)
+
 ## 📜 Check and Install Fonts
 
 This project uses the **Leelawadee** font by default.
@@ -73,9 +75,9 @@ rm -rf ~/.cache/matplotlib
 
 ## ⚠️ Optional: LaTeX Support for Matplotlib
 
-This package **does not require LaTeX** to function. However, if you enable LaTeX text rendering in `matplotlib` (e.g., by setting `plt.rc('text', usetex=True)`), you must have a LaTeX installation available on your system.
+This package **does not require LaTeX** to function. However, if you enable LaTeX text rendering in `matplotlib` (e.g., by setting `plt.rc('text', usetex=True)` or by calling `LogicTreeETC.add_box()` method with `use_tex_rendering=True`), you must have a LaTeX installation available on your system.
 
-Without LaTeX installed, using `usetex=True` will cause errors like:
+Without LaTeX installed, trying to use tex rendering will cause errors like:
 ```
 RuntimeError: Failed to process string with tex because latex could not be found
 ```
