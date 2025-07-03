@@ -1,3 +1,38 @@
+"""
+This module defines the LogicTree class, which helps create logic tree diagrams
+using LogicBox and ArrowETC objects. LogicTree manages adding labeled boxes,
+connecting them with multi-segmented arrows, and rendering the final figure
+with matplotlib. LaTeX rendering is supported for advanced text formatting.
+
+Examples
+--------
+Here's a minimal example of how to build a logic tree diagram:
+
+>>> from logictree.LogicTreeETC import LogicTree
+>>> logic_tree = LogicTree(xlims=(0, 100), ylims=(0, 100), title="My Logic Tree")
+
+# Add some boxes
+>>> logic_tree.add_box(xpos=20, ypos=80, text="Start", box_name="Start", bbox_fc="black", bbox_ec="white", ha="center")
+>>> logic_tree.add_box(xpos=20, ypos=50, text="Decision", box_name="Decision", bbox_fc="black", bbox_ec="white", ha="center")
+>>> logic_tree.add_box(xpos=10, ypos=20, text="Option A", box_name="OptionA", bbox_fc="black", bbox_ec="green", ha="center")
+>>> logic_tree.add_box(xpos=30, ypos=20, text="Option B", box_name="OptionB", bbox_fc="black", bbox_ec="red", ha="center")
+
+# Connect boxes
+>>> logic_tree.add_connection(boxA=logic_tree.boxes["Start"], boxB=logic_tree.boxes["Decision"], arrow_head=True, arrow_width=2)
+>>> logic_tree.add_connection_biSplit(boxA=logic_tree.boxes["Decision"], boxB=logic_tree.boxes["OptionA"], boxC=logic_tree.boxes["OptionB"], arrow_head=True, arrow_width=2)
+
+# Add a title and save
+>>> logic_tree.make_title(pos="center")
+>>> logic_tree.save_as_png("logic_tree_example.png", dpi=300)
+
+Notes
+-----
+- ArrowETC connectors are limited to straight lines with right-angle bends (90-degree only).
+- If LaTeX rendering is enabled, packages such as bm, amsmath, soul, and relsize must be installed.
+"""
+
+from typing import Any, Dict, List, Literal, Optional, Tuple
+
 from matplotlib.patches import BoxStyle
 import matplotlib.pyplot as plt
 
@@ -5,70 +40,79 @@ from .ArrowETC import ArrowETC
 from .LogicBoxETC import LogicBox
 
 class LogicTree:
-    '''
-    Class for building logic tree graphs by placing LogicBox objects and connecting them
-    with lines/arrows. Uses ArrowETC objects for connecting boxes which are particularly 
-    nice as they (1) use data dimensions for their width, (2) can just be given a list of 
-    vertices to pass arrows/lines through (limited to 90degree bends), and (3) have robust
-    attributes about dimensions and vertex positions. 
-    Built on top of matplotlib. 
-    Latex can be used to render text and if turned on (when calling add_box() method) one must 
-    have the {bm} package for allowing math symbols to be bolded, {amsmath} package for a 
-    variety of math options including embedding text within inline math, {soul} for underlining
-    with a rich set of features, and {relsize} to make math symbols larger since smaller symbols
-    such as \mu become much smaller than the surrounding text.
-    
-    Start by initializing a LogicTree object, add boxes using the add_box() method, then 
-    connect your boxes with the add_connection() and add_connection_biSplit() methods
-    
-    Optional Parmeters:
-        fig_size -> tuple of floats/ints:
-            Determines the figure size of matplotlib figure (x, y)
-        xlims -> tuple of floats/ints:
-            Determines the minimum and maximum x values used for plotting on the 
-            matplotlib axis (x_min, x_max)
-            Can cause weird stretching if xlims != ylims
-        ylims -> tuple of floats/ints:
-            Determines the minimum and maximum y values used for plotting on the 
-            matplotlib axis (y_min, y_max)
-            Can cause weird stretching if xlims != ylims
-        fig_fc -> str:
-            Determines the background color of figure
-        title -> str:
-            Variable stored for placing a title on the figure using the make_title()
-            method. Can be changed when calling make_title()
-        font_dict -> dictionary:
-            A dictionary of parameters to determine the fonts used for general text,
-            this may be changed anytime one calls the add_box() method
-            See matplotlib documentation for more options
-            https://matplotlib.org/stable/api/text_api.html#matplotlib.text.Text
-        font_dict_title -> dicitonary:
-            A dicionary of parameters to determine the font used for the figure title
-            See matplotlib documentation for more options
-            https://matplotlib.org/stable/api/text_api.html#matplotlib.text.Text
-        text_color -> str:
-            A string that determines the color of text. If not set as text_color=None,
-            it will override any color key set in font_dict
-        title_color -> str:
-            A string that determines the color of your title. If not set as title_color=None,
-            it will override any color key set in font_dict_title
-    '''
-    def __init__(self, fig_size=(9,9), xlims=(0,100), ylims=(0,100), fig_fc='black', \
-                title=None, font_dict=None, font_dict_title=None, text_color=None, title_color=None):
-        # dictionary to store boxes by their identifier to get there dims/coords
+    """
+    Build logic tree diagrams by placing LogicBox objects and connecting them with ArrowETC arrows.
+
+    LogicTree allows you to:
+    - Add labeled boxes using `add_box()`
+    - Connect boxes with straight or segmented arrows using `add_connection()` or `add_connection_biSplit()`
+    - Style your logic tree with fonts, colors, figure titles, and LaTeX-rendered text.
+
+    Parameters
+    ----------
+    fig_size : tuple of float, optional
+        Size of the matplotlib figure (width, height). Default is (9, 9).
+    xlims : tuple of float, optional
+        Min and max x-axis limits. Default is (0, 100).
+    ylims : tuple of float, optional
+        Min and max y-axis limits. Default is (0, 100).
+    fig_fc : str, optional
+        Background color of the figure. Default is 'black'.
+    title : str, optional
+        Title to display on the figure. Can be updated later with `make_title()`.
+    font_dict : dict, optional
+        Font settings for general text in boxes. If None, a default font dict is used.
+    font_dict_title : dict, optional
+        Font settings for the figure title. If None, a default font dict is used.
+    text_color : str, optional
+        Override for font color in boxes.
+    title_color : str, optional
+        Override for font color of the figure title.
+
+    Attributes
+    ----------
+    fig : matplotlib.figure.Figure
+        The matplotlib figure instance.
+    ax : matplotlib.axes.Axes
+        The main matplotlib axes for drawing.
+    boxes : dict
+        Dictionary storing LogicBox objects keyed by their `box_name`.
+    title : str
+        The figure's title.
+    xlims, ylims : tuple of float
+        Axis limits used for positioning and layout.
+    font_dict : dict
+        Default font settings for text in boxes.
+    title_font : dict
+        Font settings for the figure title.
+    latex_ul_depth, latex_ul_width : str
+        Settings for LaTeX underlining (depth and width).
+    """
+    def __init__(
+        self,
+        fig_size: Tuple[float, float] = (9, 9),
+        xlims: Tuple[float, float] = (0, 100),
+        ylims: Tuple[float, float] = (0, 100),
+        fig_fc: str = 'black',
+        title: Optional[str] = None,
+        font_dict: Optional[Dict[str, Any]] = None,
+        font_dict_title: Optional[Dict[str, Any]] = None,
+        text_color: Optional[str] = None,
+        title_color: Optional[str] = None,
+    ) -> None:
         self.boxes = {}  
         self.title = title
         self.xlims = xlims
         self.ylims = ylims
         
-        # font dictionary for title
+        # Font dictionary for title
         if font_dict_title is None:
             font_dict_title = dict(fontname='Sitka', fontsize=34, color='white')
         if title_color is not None:
             font_dict_title['color'] = title_color
         self.title_font = font_dict_title
         
-        # default fontdict
+        # Default font dictionary for boxes
         if font_dict is None:
             font_dict = {
                 'fontname': 'Leelawadee',
@@ -79,148 +123,147 @@ class LogicTree:
             font_dict['color'] = text_color
         self.font_dict = font_dict
         
-        
-        # underlining options for latex rendering
+        # Underlining options for LaTeX rendering
         self.latex_ul_depth = '1pt'
         self.latex_ul_width = '1pt'
         
-        # generate figure and axis to put boxes in
-        fig = plt.figure(figsize=fig_size, frameon=True, facecolor=fig_fc)
-        ax = plt.axes()
-
-        # set axes limits remove ticks and spines from axis (blank figure)
+        # Generate figure and axes
+        fig, ax = plt.subplots(figsize=fig_size, frameon=True, facecolor=fig_fc)
         ax.set_xlim(xlims[0], xlims[1])
         ax.set_ylim(ylims[0], ylims[1])
         ax.axis('off')
-        fig.canvas.draw_idle() # this is needed to use bbox.get_window_extent() method for txtbox sizes
+        fig.canvas.draw_idle()
+        
         self.fig = fig
         self.ax = ax
         
-    def _get_pathsForBi_left_then_right(self, Ax2, Ay2, left_box, right_box, tip_offset):
-        '''
-        "private" method to be used for generating the paths of a 4vertex connection.
-        For using in the add_connection_biSplit() method. The center of left_box must
-        be to the left of the center of right_box
-        
-        Required parameters:
-            Ax2 -> float/int:
-                x position of the tip of previous line (starting position of butt of current)
-            Ay2 -> float/int:
-                y position of the tip of previous line (starting position of butt of current)
-            left_box -> LogicBox object:
-                the LogicBox object whose center is to the left of right_box
-            right_box -> LogicBox objectL
-                the LogicBox object whoes center is to the right of left_box
-            tip_offset -> float/int:
-                Arrow tips sometimes overlap with text bbox's depending on figuresize,
-                x and y lims, fontsize, etc..., so tip_offset tells how much
-                to offset the arrow tip
-        '''
+    def _get_pathsForBi_left_then_right(
+        self, 
+        Ax2: float, 
+        Ay2: float, 
+        left_box: LogicBox, 
+        right_box: LogicBox, 
+        tip_offset: float
+    ) -> Tuple[List[Tuple[float, float]], List[Tuple[float, float]]]:
+        """
+        Generate the paths for a bifurcating connection with left and right branches.
+
+        Used internally by `add_connection_biSplit()` to compute the two three-segment paths
+        from a common parent point to two child boxes.
+
+        Parameters
+        ----------
+        Ax2, Ay2 : float
+            Starting point of the split (usually end of vertical line from boxA).
+        left_box, right_box : LogicBox
+            Boxes to connect left and right paths to. left_box must be left of right_box.
+        tip_offset : float
+            Vertical offset for the arrow tips.
+
+        Returns
+        -------
+        tuple of list of tuple
+            Paths for the left and right connections, each a list of (x, y) points.
+        """
         # create the leftward arrow
         Lx1 = Ax2
         Ly1 = Ay2
         Lx2 = left_box.x_center
         Ly2 = Ly1
         Lx3 = Lx2
-        # if left_box is below boxA
-        if Ay2 > left_box.y_center:
-            Ly3 = left_box.yTop + tip_offset
-        # otherwise it must be above boxA
-        else:
-            Ly3 = left_box.yBottom - tip_offset
-        # creat the rightward arrow
+        Ly3 = left_box.yTop + tip_offset if Ay2 > left_box.y_center else left_box.yBottom - tip_offset
+        
+        # create the rightward arrow
         Rx1 = Ax2
         Ry1 = Ay2
         Rx2 = right_box.x_center
         Ry2 = Ry1
         Rx3 = Rx2
-        # if right_box is below boxA
-        if Ay2 > right_box.y_center:
-            Ry3 = right_box.yTop + tip_offset
-        # otherwise it must be above boxA
-        else:
-            Ry3 = right_box.yBottom - tip_offset
+        Ry3 = right_box.yTop + tip_offset if Ay2 > right_box.y_center else right_box.yBottom - tip_offset
+
         # set paths
         path_left = [(Lx1, Ly1), (Lx2, Ly2), (Lx3, Ly3)]
         path_right = [(Rx1, Ry1), (Rx2, Ry2), (Rx3, Ry3)]
 
         return path_left, path_right    
 
-    def add_box(self, xpos, ypos, text, box_name, bbox_fc, bbox_ec, font_dict=None, \
-                text_color=None, fs=None, font_weight=None, lw=1.6, \
-                bbox_style=BoxStyle('Round', pad=0.6), va='center', ha='right', \
-                use_tex_rendering=False, ul=False, ul_depth_width=None):
-        
-        '''
-        method for adding a box to the LogicTree using matplotlib.text
-        
-        Required parameters:
-            xpos -> float/int:
-                determines the x position of the box
-            ypos -> float/int:
-                determines the y position of the box
-            text -> str:
-                the string of text that will be shown inside of the box. Latex rendering
-                may be used if use_tex_rendering is set to True
-            box_name -> str:
-                a unique identifier for your LogicBox to be stored in the boxes attribute
-                of your LogicTree object. This identifier must be used to make connections
-                with the provided methods
-            bbox_fc -> str:
-                the face color of your text box. Use RGBA values if you want a transparent
-                box. E.g., bbox_fc=(0,0,0,0)
-            bbox_ec -> str:
-                the edge color of your text box. Use RGBA values if you want a transparent
-                box. E.g., bbox_fc=(0,0,0,0)
-            
-        Optional Parameters:
-            font_dict -> dictionary:
-                A dictionary of parameters to determine the fonts used for your text
-                See matplotlib documentation for more options
-                https://matplotlib.org/stable/api/text_api.html#matplotlib.text.Text
-            text_color -> str:
-                A string that determines the color of text. If not set as text_color=None,
-                it will override any color key set in font_dict
-            fs -> int:
-                Determine the fontsize of your text. Overrides fontsize provided in font_dict
-            font_weight -> str:
-                Determines the font weight of your text. Overrides the weight provided in font_dict
-                Options: ['normal', 'bold', 'heavy', 'light', 'ultrabold', 'ultralight']
-            lw -> float/int:
-                determines the linewidth of the bbox surrounding your text
-                bbox_style -> BoxStyle object:
-                matplotlib.patches.BoxStyle object for box shape and padding
-                https://matplotlib.org/stable/api/_as_gen/matplotlib.patches.BoxStyle.html
-            va -> str:
-                Determines the vertical alignment of your text box.
-                Options: ['left', 'center', 'right']
-            ha -> str:
-                Determines the horizontal alignment of your text box
-                Options: ['top', 'center', 'bottom']
-            use_tex_rendering -> bool:
-                Determines whether or not to include a latex preamble in generating your text.
-                If set to True, one must have the {bm} package for allowing math symbols to be 
-                bolded, {amsmath} package for a variety of math options including embedding text 
-                within inline math, {soul} for underlining with a rich set of features, 
-                and {relsize} to make math symbols larger since smaller symbols such as \mu 
-                become much smaller than the surrounding text.
-            ul -> bool:
-                Option used to underline text if use_tex_rendering is True
-            ul_depth_width -> tuple of floats/ints:
-                A tuple that determines the depth and width of your underlining if
-                use_tex_rendering is True and ul is True. (depth, width)                
-        '''
+    def add_box(
+        self, 
+        xpos: float, 
+        ypos: float, 
+        text: str, 
+        box_name: str, 
+        bbox_fc: str, 
+        bbox_ec: str, 
+        font_dict: Optional[Dict[str, Any]] = None,
+        text_color: Optional[str] = None, 
+        fs: Optional[int] = None, 
+        font_weight: Optional[float] = None, 
+        lw: float = 1.6,
+        bbox_style: BoxStyle = BoxStyle('Round', pad=0.6), 
+        va: Literal['top', 'center', 'bottom'] = 'center', 
+        ha: Literal['left', 'center', 'right'] = 'right', 
+        use_tex_rendering: bool = False, 
+        ul: bool = False, 
+        ul_depth_width: Optional[Tuple[float, float]] = None
+    ) -> None:
+        """
+        Add a LogicBox to the LogicTree with specified text and styling.
+
+        Parameters
+        ----------
+        xpos, ypos : float
+            Coordinates for box placement.
+        text : str
+            Text displayed inside the box. Supports LaTeX if `use_tex_rendering=True`.
+        box_name : str
+            Unique identifier for the LogicBox; used to reference the box in connections.
+        bbox_fc, bbox_ec : str
+            Face and edge colors of the box. RGBA tuples allowed for transparency.
+        font_dict : dict, optional
+            Font properties. Defaults to LogicTree's font_dict.
+        text_color : str, optional
+            Override for the text color.
+        fs : int, optional
+            Override for font size.
+        font_weight : str, optional
+            Font weight (e.g., 'normal', 'bold').
+        lw : float, optional
+            Line width of the box's edge. Default is 1.6.
+        bbox_style : BoxStyle, optional
+            Matplotlib BoxStyle object for box shape and padding. Default is 'Round'.
+        va : str, optional
+            Vertical alignment: 'top', 'center', or 'bottom'. Default is 'center'.
+        ha : str, optional
+            Horizontal alignment: 'left', 'center', or 'right'. Default is 'right'.
+        use_tex_rendering : bool, optional
+            Enable LaTeX text rendering.
+        ul : bool, optional
+            Underline text if LaTeX rendering is enabled.
+        ul_depth_width : tuple of (float, float), optional
+            Underline depth and width for LaTeX.
+
+        Raises
+        ------
+        ValueError
+            If `box_name` is already used.
+        """
+        if box_name in self.boxes:
+            raise ValueError(f"Box name '{box_name}' already exists. Please use a unique name.")
+
         # option to use latex rendering (minimal font options with latex, so not default)
         if use_tex_rendering:
             # our latex preamble for importing latex packages and making a command
             # \bigsymbol{} for enlarging latex math symbols
-            latex_preamble = f'''\\usepackage{{bm}}
-                                 \\usepackage{{amsmath}}
-                                 \\usepackage{{soul}}
-                                 \\setul{{2pt}}{{1pt}}
-                                 \\usepackage{{relsize}}
-                                 \\newcommand{{\\bigsymbol}}[1]{{\\mathlarger{{\\mathlarger{{\\mathlarger{{#1}}}}}}}}
-                                 '''
+            latex_preamble = (
+                r"\usepackage{bm}"
+                r"\usepackage{amsmath}"
+                r"\usepackage{soul}"
+                r"\setul{2pt}{1pt}"
+                r"\usepackage{relsize}"
+                r"\newcommand{\bigsymbol}[1]{\mathlarger{\mathlarger{\mathlarger{#1}}}}"
+            )
+
             # update rcParams to use latex
             plt.rcParams.update({
                 "text.usetex": True,
@@ -232,7 +275,7 @@ class LogicTree:
             
         # set fontidct of not provided
         if font_dict is None:
-            font_dict = self.font_dict
+            font_dict = self.font_dict.copy()
         # if specific text color is specified, change it in font_dict
         if text_color is not None:
             font_dict['color'] = text_color
@@ -244,9 +287,11 @@ class LogicTree:
             font_dict['weight'] = font_weight
             
         # create a logicBox object which stores all of this information
-        myBox = LogicBox(xpos=xpos, ypos=ypos, text=text, box_name=box_name, bbox_fc=bbox_fc, \
-                        bbox_ec=bbox_ec, bbox_style=bbox_style, font_dict=font_dict, \
-                        va=va, ha=ha, lw=lw)
+        myBox = LogicBox(
+            xpos=xpos, ypos=ypos, text=text, box_name=box_name, 
+            bbox_fc=bbox_fc, bbox_ec=bbox_ec, bbox_style=bbox_style, 
+            font_dict=font_dict, va=va, ha=ha, lw=lw
+        )
         
         # add latex commands to text for underlining 
         if use_tex_rendering and (ul or ul_depth_width is not None):
@@ -257,11 +302,15 @@ class LogicTree:
         else:
             text_str = myBox.text
         # make the text
-        txt = self.ax.text(x=myBox.x, y=myBox.y, s=text_str, fontdict=myBox.font_dict, \
-                      bbox=myBox.style, va=myBox.va, ha=myBox.ha)
+        txt = self.ax.text(
+            x=myBox.x, y=myBox.y, s=text_str, fontdict=myBox.font_dict,
+            bbox=myBox.style, va=myBox.va, ha=myBox.ha
+        )
         
         # get our box's dims and edge positions to store in myBox object
-        bbox = plt.gca().transData.inverted().transform_bbox(txt.get_window_extent(renderer=self.fig.canvas.get_renderer())) # coords of text
+        bbox = plt.gca().transData.inverted().transform_bbox(
+            txt.get_window_extent(renderer=self.fig.canvas.get_renderer())
+        ) # coords of text
         wpad = txt.get_bbox_patch().get_extents().width # pad size for width
         hpad = txt.get_bbox_patch().get_extents().height # pad size for height
         myBox.xLeft, myBox.xRight = bbox.x0 - wpad, bbox.x1 + wpad
@@ -274,69 +323,49 @@ class LogicTree:
         # store box in our LogicTree object's box dictionary to grab dimensions when needed
         self.boxes[myBox.name] = myBox
         
-        
-    def add_connection_biSplit(self, boxA, boxB, boxC, arrow_head=True, arrow_width=0.5, \
-                          fill_connection=True, fc_A=None, ec_A=None, fc_B=None, ec_B=None, \
-                          fc_C=None, ec_C=None, lw=0.5, butt_offset=0, tip_offset=0):
-        '''
-        Method for adding a connection between three boxes with a butt at boxA
-        and tips at both boxB and boxC. Only works for top and bottom connections
-        at the horizontal center of the boxes. The connection is made with and
-        ArrowETC object.
-        
-        Required parameters:
-            boxA -> LogicBox object:
-                The parent LogicBox object that you want to connect to boxB and boxC,
-                with the butt of the connector (ArrowETC object) on the top or bottom 
-                of boxA -- boxA must be located either above both boxB and boxC OR
-                below both boxB and boxC
-            boxB -> LogicBox object:
-                The first child connected to boxA, with a tip at the top or bottom of boxB.
-                Must be above or below boxA
-            boxC -> LogicBox object:
-                The second child connected to boxA, with a tip at the top or bottom of boxC.
-                Must be above or below boxA
-            arrow_head -> bool:
-                Determines if the connection with have arrow heads pointing to boxB and boxC
-            arrow_width -> float/int:
-                Determines the width of the connector in data dimension units
-            fill_connection -> bool:
-                Determines if the arrows will be filled with color or not
-            fc_A -> str:
-                Determines the fill color of the first part of the connection stemming 
-                from boxA. If fc_A=None, fc_A will equal the face color of boxA.
-                If fc_='ec', fc_A will equal the edge color of boxA
-            ec_A -> str:
-                Determines the edge color of the first part of the connection stemming
-                from boxA. If ec_A=None, ec_A will equal the edge color of boxA.
-                If ec_A='fc', ec_A will equal the face color of boxA
-            fc_B -> str:
-                Determines the fill color of the part of the connection leading to boxB. 
-                If fc_B=None, fc_B will equal the face color of boxB.
-                If fc_B='ec', fc_B will equal the edge color of boxB
-            ec_B -> str:
-                Determines the edge color of the part of the connection leading to boxB. 
-                If ec_B=None, ec_B will equal the edge color of boxB.
-                If ec_B='fc', ec_B will equal the face color of boxB
-            fc_C -> str:
-                Determines the fill color of the part of the connection leading to boxC. 
-                If fc_C=None, fc_C will equal the face color of boxC.
-                If fc_C='ec', fc_C will equal the edge color of boxC
-            ec_C -> str:
-                Determines the edge color of the part of the connection leading to boxC. 
-                If ec_C=None, ec_C will equal the edge color of boxC.
-                If ec_C='fc', ec_C will equal the face color of boxC
-            lw -> float/int:
-                The linewidth of the connection edges
-            butt_offset -> float/int:
-                Arrow tips sometimes overlap with text bbox's depending on figuresize,
-                x and y lims, fontsize, etc..., so butt_offset tells how much
-                to offset the arrow butt
-            tip_offset -> float/int:
-                Arrow tips sometimes overlap with text bbox's depending on figuresize,
-                x and y lims, fontsize, etc..., so tip_offset tells how much
-                to offset the arrow tip
-        '''
+    def add_connection_biSplit(
+        self, 
+        boxA: LogicBox, 
+        boxB: LogicBox, 
+        boxC: LogicBox, 
+        arrow_head: bool = True, 
+        arrow_width: float = 0.5,
+        fill_connection: bool = True, 
+        fc_A: Optional[str] = None, 
+        ec_A: Optional[str] = None, 
+        fc_B: Optional[str] = None, 
+        ec_B: Optional[str] = None,
+        fc_C: Optional[str] = None, 
+        ec_C: Optional[str] = None, 
+        lw: float = 0.5, 
+        butt_offset: float = 0, 
+        tip_offset: float = 0
+    ) -> None:
+        """
+        Create a bifurcating connection from boxA to both boxB and boxC.
+
+        Parameters
+        ----------
+        boxA, boxB, boxC : LogicBox
+            Parent and child boxes for the connection. boxA must be above or below both boxB and boxC.
+        arrow_head : bool, optional
+            If True, draws arrowheads at boxB and boxC.
+        arrow_width : float, optional
+            Width of the arrows in data coordinates.
+        fill_connection : bool, optional
+            Whether to fill the arrows with color.
+        fc_A, ec_A, fc_B, ec_B, fc_C, ec_C : str, optional
+            Fill and edge colors for the three parts of the connection.
+        lw : float, optional
+            Line width of the arrows.
+        butt_offset, tip_offset : float, optional
+            Offsets for avoiding overlap at the base or tips of the arrows.
+
+        Raises
+        ------
+        ValueError
+            If boxA is not clearly above or below both boxB and boxC.
+        """
         # do stylizing stuff
         if fill_connection:
             # option for face color to equal edgecolor
@@ -515,40 +544,48 @@ class LogicTree:
                 if fill_connection:
                     self.ax.fill(x, y, color=fc_B)
             
-    def add_connection(self, boxA, boxB, arrow_head=True, arrow_width=0.5, fill_connection=True, \
-                             butt_offset=0, tip_offset=0, fc=None, ec=None, lw=0.7):
-        '''
-        Makes a segmented arrow from boxA to boxB. Only works for straight arrows when
-        boxA and boxB lie on the same axis.
-        
-        Required Parameters:
-            boxA -> LogicBox object:
-                The LogicBox object where the butt of your arrow will stem from
-            boxB -> LogicBox objectL
-                The LogicBoc object where the tip of your arrow will point to
+    def add_connection(
+        self, 
+        boxA: LogicBox, 
+        boxB: LogicBox, 
+        arrow_head: bool = True, 
+        arrow_width: float = 0.5, 
+        fill_connection: bool= True,
+        butt_offset: float = 0, 
+        tip_offset: float = 0, 
+        fc: Optional[str] = None, 
+        ec: Optional[str] = None, 
+        lw: float = 0.7
+    ) -> None:
+        """
+        Create a straight or segmented connection (arrow) from boxA to boxB.
 
-        Optional Parameters:
-            arrow_head -> bool:
-                Determines if the connection with have arrow heads pointing to boxB and boxC
-            arrow_width -> float/int:
-                Determines the width of the connector in data dimension units
-            fill_connection -> bool:
-                Determines if the arrows will be filled with color or not
-            butt_offset -> float/int:
-                Arrow tips sometimes overlap with text bbox's depending on figuresize,
-                x and y lims, fontsize, etc..., so butt_offset tells how much
-                to offset the arrow butt
-            tip_offset -> float/int:
-                Arrow tips sometimes overlap with text bbox's depending on figuresize,
-                x and y lims, fontsize, etc..., so tip_offset tells how much
-                to offset the arrow tip
-            fc -> str:
-                Determines the fill color of the connection. If fc=None, fc will equal 
-                the face color of boxB. If fc='ec', fc will equal the edge color of boxB
-            ec -> str:
-                Determines the edge color of the connection. If ec=None, ec will equal 
-                the face color of boxB. If ec='fc', ec will equal the face color of boxB
-        '''
+        Parameters
+        ----------
+        boxA, boxB : LogicBox
+            Source and target boxes for the connection.
+        arrow_head : bool, optional
+            If True, draws an arrowhead at boxB.
+        arrow_width : float, optional
+            Width of the arrow in data coordinates. Default is 0.5.
+        fill_connection : bool, optional
+            Whether to fill the arrow with color.
+        butt_offset : float, optional
+            Offset of the arrow's butt to avoid overlapping with boxA.
+        tip_offset : float, optional
+            Offset of the arrow's tip to avoid overlapping with boxB.
+        fc : str, optional
+            Fill color; if None, uses boxB's face color. If 'ec', uses boxB's edge color.
+        ec : str, optional
+            Edge color; if None, uses boxB's edge color. If 'fc', uses boxB's face color.
+        lw : float, optional
+            Line width of the arrow edges.
+
+        Raises
+        ------
+        ValueError
+            If boxes are not aligned in the same row or column and cannot be connected directly.
+        """
         # handle colors
         if fill_connection:
             # if no fc is chosen, take the fc of connection to be fc of boxB
@@ -602,6 +639,8 @@ class LogicTree:
                 Cx, Cy = boxB.x_center, By
                 Dx, Dy = Cx, boxB.yTop + tip_offset
                 path = [(Ax, Ay), (Bx, By), (Cx, Cy), (Dx, Dy)]
+        else:
+            raise ValueError("Boxes must be aligned horizontally or vertically to create a connection.")
                 
         # create arrow object and 
         arrow = ArrowETC(path=path, arrow_head=arrow_head, arrow_width=arrow_width)
@@ -612,23 +651,29 @@ class LogicTree:
         if fill_connection:
             self.ax.fill(x, y, color=fc)
             
-    def make_title(self, pos='left', consider_box_x=True, new_title=None):
-        '''
-        Method for placing a title on your LogicTree in the top left, top right, or top center.
-        It is important to place your box objects below the ymax value in ylims, otherwise
-        the title might overlap with your content.
-        
-        Optional Parameters:
-            pos -> str:
-                Decides the horizontal alignment of the title.
-                Options: ['left', 'right', 'center']
-            consider_box_x -> bool:
-                Determines whether the horizontal position of the title is determined
-                by the values in xlims, or if it determined by the positions of your
-                LogicBox objects.
-            new_title -> str:
-                Lets you set a new title for your LogicTree
-        '''
+    def make_title(
+        self, 
+        pos: Literal['left', 'center', 'right'] = 'left', 
+        consider_box_x: bool = True, 
+        new_title: Optional[str] = None
+    ) -> None:
+        """
+        Place a title on the LogicTree figure.
+
+        Parameters
+        ----------
+        pos : str, optional
+            Horizontal alignment of the title; one of ['left', 'center', 'right']. Default is 'left'.
+        consider_box_x : bool, optional
+            If True, aligns the title based on box positions; otherwise aligns using xlims. Default is True.
+        new_title : str, optional
+            If provided, updates the LogicTree's title before placing it.
+
+        Raises
+        ------
+        ValueError
+            If `pos` is not one of the accepted options.
+        """
         if new_title is not None:
             self.title = new_title
         
@@ -644,12 +689,12 @@ class LogicTree:
                 ha = 'right'
                 x = self.xlims[1]
             else:
-                raise Exception("pos paramter should have value of ['left', 'right', 'center']")
+                raise ValueError("pos must be one of ['left', 'center', 'right']")
         
         # if we are to consider_box_x
         else:
-            xFarLeft = 0
-            xFarRight = 0
+            xFarLeft = float('inf')
+            xFarRight = float('-inf')
             for box in self.boxes:
                 if self.boxes[box].xLeft < xFarLeft:
                     xFarLeft = self.boxes[box].xLeft
@@ -665,26 +710,22 @@ class LogicTree:
                 ha = 'center'
                 x = (xFarRight + xFarLeft)/2
             else:
-                raise Exception("pos paramter should have value of ['left', 'right', 'center']")
+                raise ValueError("pos must be one of ['left', 'center', 'right']")
         
         # finally make the title
         self.ax.text(x=x, y=self.ylims[1], s=self.title, va='top', ha=ha, fontdict=self.title_font)
                 
-    def save_as_png(self, file_name, dpi=800):
-        '''
-        Lets your save your LogicTree as a PNG file
-        
-        Required Parameters:
-            file_name -> str:
-                The path/name of your output png file
-        
-        Optional Parameters:
-            dpi -> int:
-                The dpi (resolution) of your output png file. A higher number leads to a
-                clearer image, but a larger file size
-        '''
+    def save_as_png(self, file_name: str, dpi: int = 800) -> None:
+        """
+        Save the LogicTree diagram as a PNG file.
+
+        Parameters
+        ----------
+        file_name : str
+            Path and name of the output PNG file.
+        dpi : int, optional
+            Resolution of the output image. Default is 800.
+        """
         self.fig.savefig(file_name, dpi=dpi, bbox_inches='tight')
-       
 
-
-
+__all__ = ["LogicTree"]
