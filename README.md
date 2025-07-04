@@ -1,8 +1,10 @@
 # LogicTreeETC
 
+[![Documentation Status](https://readthedocs.org/projects/logictreeetc/badge/?version=latest)](https://logictreeetc.readthedocs.io/en/latest/?badge=latest)
+
 **Create flexible, publication-quality logic tree diagrams and multi-segment arrows with full vertex control in Python.**
 
-LogicTreeETC lets you create logic trees by combining labeled boxes and arrows with precise control over geometry, fonts, styling, and LaTeX-rendered annotations.
+📖 **[Read the Docs: Full Documentation](https://logictreeetc.readthedocs.io/en/latest/)**
 
 ---
 
