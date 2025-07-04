@@ -27,11 +27,3 @@ logictree.LogicTreeETC module
    :members:
    :show-inheritance:
    :undoc-members:
-
-Module contents
----------------
-
-.. automodule:: logictree
-   :members:
-   :show-inheritance:
-   :undoc-members:

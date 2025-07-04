@@ -22,7 +22,7 @@ pip install --upgrade logictreeetc
 
 ---
 
-## ⚡ Why use LogicTreeETC?
+## Why use LogicTreeETC?
 
 Matplotlib's built-in `FancyArrow` and `FancyArrowPatch` only support single straight or curved arrows without exposing vertex information. That means:
 - You can’t create arrows with multiple segments or right-angle bends.
@@ -30,6 +30,7 @@ Matplotlib's built-in `FancyArrow` and `FancyArrowPatch` only support single str
 - You’re stuck with fixed styling options.
 
 **LogicTreeETC fixes this by:**
+
 ✅ Letting you build multi-segment arrows with arbitrary paths.  
 ✅ Storing all vertex positions in class attributes so you can reuse or debug them.  
 ✅ Giving you control over the width, head, color, and path of every arrow.  
@@ -42,6 +43,7 @@ Matplotlib's built-in `FancyArrow` and `FancyArrowPatch` only support single str
 The `ArrowETC` class **assumes an equal aspect ratio** (i.e., 1:1 x/y scaling). If you plot with a non-square aspect ratio, the arrow will appear distorted since vertex coordinates assume equal scaling.
 
 **To avoid this:**
+
 1. Always set `ax.set_aspect('equal')` on your own matplotlib axes.
 2. Or manually adjust vertex coordinates to compensate for uneven scaling.
 
@@ -57,7 +59,7 @@ modules
 
 ---
 
-## 🔥 Examples
+## Examples
 
 ### Example 1: Decision Tree for Non-Targeted Analysis (NTA)
 
