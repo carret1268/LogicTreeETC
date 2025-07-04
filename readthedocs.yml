@@ -9,7 +9,6 @@ build:
     python: "3.11"
 
 python:
-  version: 3.11  # Or 3.8/3.10 — any version you support
   install:
     - method: pip
       path: .
