@@ -59,22 +59,22 @@ def make_ds_algo_study_order_tree():
 
     # Connect boxes in suggested order:
     logic_tree.add_connection(boxA=logic_tree.boxes['Arrays'], boxB=logic_tree.boxes['Stacks'],
-                              arrow_head=True, arrow_width=arr_width, tip_offset=tip_offset)
+                              arrow_head=True, arrow_width=arr_width, tip_offset=tip_offset, fc=(1,1,1,0.3), ec="white")
     logic_tree.add_connection(boxA=logic_tree.boxes['Stacks'], boxB=logic_tree.boxes['Queues'],
-                              arrow_head=True, arrow_width=arr_width, tip_offset=tip_offset)
+                              arrow_head=True, arrow_width=arr_width, tip_offset=tip_offset, fc=(1,1,1,0.3), ec="white")
     logic_tree.add_connection(boxA=logic_tree.boxes['Queues'], boxB=logic_tree.boxes['SinglyLinked'],
-                              arrow_head=True, arrow_width=arr_width, tip_offset=tip_offset)
+                              arrow_head=True, arrow_width=arr_width, tip_offset=tip_offset, fc=(1,1,1,0.3), ec="white")
     logic_tree.add_connection(boxA=logic_tree.boxes['SinglyLinked'], boxB=logic_tree.boxes['CircularLinked'],
-                              arrow_head=True, arrow_width=arr_width, tip_offset=tip_offset)
+                              arrow_head=True, arrow_width=arr_width, tip_offset=tip_offset, fc=(1,1,1,0.3), ec="white")
     logic_tree.add_connection(boxA=logic_tree.boxes['CircularLinked'], boxB=logic_tree.boxes['DoublyLinked'],
-                              arrow_head=True, arrow_width=arr_width, tip_offset=tip_offset)
+                              arrow_head=True, arrow_width=arr_width, tip_offset=tip_offset, fc=(1,1,1,0.3), ec="white")
     logic_tree.add_connection(boxA=logic_tree.boxes['DoublyLinked'], boxB=logic_tree.boxes['Trees'],
-                              arrow_head=True, arrow_width=arr_width, tip_offset=tip_offset)
+                              arrow_head=True, arrow_width=arr_width, tip_offset=tip_offset, fc=(1,1,1,0.3), ec="white")
     logic_tree.add_connection(boxA=logic_tree.boxes['Trees'], boxB=logic_tree.boxes['Graphs'],
-                              arrow_head=True, arrow_width=arr_width, tip_offset=tip_offset)
+                              arrow_head=True, arrow_width=arr_width, tip_offset=tip_offset, fc=(1,1,1,0.3), ec="white")
 
     logic_tree.make_title(pos='center')
-    logic_tree.save_as_png(file_name=Path(__file__).resolve().parent / 'DecisionTree_DSA-Example.png', dpi=600)
+    logic_tree.save_as_png(file_name=Path(__file__).resolve().parent / 'DecisionTree_DSA-Example.png', dpi=600, content_padding=0.1)
 
 if __name__ == '__main__':
     make_ds_algo_study_order_tree()

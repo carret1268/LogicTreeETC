@@ -130,7 +130,7 @@ def make_tree():
 
     # Add title and save
     logic_tree.make_title(pos='left')
-    logic_tree.save_as_png(file_name=Path(__file__).resolve().parent / "DecisionTree_NTA-Example.png", dpi=900)
+    logic_tree.save_as_png(file_name=Path(__file__).resolve().parent / "DecisionTree_NTA-Example.png", dpi=900, content_padding=0.25)
 
 if __name__ == '__main__':
     make_tree()

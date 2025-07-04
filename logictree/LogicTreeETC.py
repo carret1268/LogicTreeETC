@@ -721,7 +721,7 @@ class LogicTree:
         # finally make the title
         self.ax.text(x=x, y=self.ylims[1], s=self.title, va='top', ha=ha, fontdict=self.title_font)
                 
-    def save_as_png(self, file_name: str, dpi: int = 800) -> None:
+    def save_as_png(self, file_name: str, dpi: int = 800, content_padding: float = 0.0) -> None:
         """
         Save the LogicTree diagram as a PNG file.
 
@@ -731,8 +731,12 @@ class LogicTree:
             Path and name of the output PNG file.
         dpi : int, optional
             Resolution of the output image. Default is 800.
+        content_padding : float, optional
+            The padding in inches to place around the content. This can be helpful
+            to prevent your boxes from touching the edge of the figures.
         """
         self.ax.set_aspect('equal')
-        self.fig.savefig(file_name, dpi=dpi, bbox_inches='tight')
+        # self.fig.subplots_adjust(right=28)
+        self.fig.savefig(file_name, dpi=dpi, bbox_inches='tight', pad_inches=content_padding)
 
 __all__ = ["LogicTree"]
