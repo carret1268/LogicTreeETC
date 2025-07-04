@@ -1,4 +1,4 @@
-# LogicTreeETC 📊
+# LogicTreeETC
 
 **Create flexible, publication-quality logic tree diagrams and multi-segment arrows with full vertex control in Python.**
 
@@ -6,7 +6,7 @@ LogicTreeETC lets you create logic trees by combining labeled boxes and arrows w
 
 ---
 
-## 📦 Installation
+## Installation
 
 You can install the latest version from PyPI with:
 
@@ -38,7 +38,7 @@ Matplotlib's built-in `FancyArrow` and `FancyArrowPatch` only support single str
 
 ---
 
-## 🚨 Important Caveat
+## Important Caveat
 
 The `ArrowETC` class **assumes an equal aspect ratio** (i.e., 1:1 x/y scaling). If you plot with a non-square aspect ratio, the arrow will appear distorted since vertex coordinates assume equal scaling.
 
@@ -101,7 +101,7 @@ arrow.save_arrow(name="./single_joint_arrow.png")
 ```
 
 
-## 📜 Check and Install Fonts
+## Check and Install Fonts
 
 This project uses the **Times New Roman** font by default.
 
@@ -152,7 +152,7 @@ brew install fontconfig
 
 ---
 
-**🔔 Note:**  
+**Note:**  
 After installing the font, you may need to restart applications or your graphical environment for the font to be recognized.
 
 If you still see an error like `findfont: Font family 'Times New Roman' not found.`, you might need to refresh your matplotlib cache. Try running
@@ -160,7 +160,7 @@ If you still see an error like `findfont: Font family 'Times New Roman' not foun
 rm -rf ~/.cache/matplotlib
 ```
 
-## ⚠️ Optional: LaTeX Support for Matplotlib
+## Optional: LaTeX Support for Matplotlib
 
 This package **does not require LaTeX** to function. However, if you enable LaTeX text rendering in `matplotlib` (e.g., by setting `plt.rc('text', usetex=True)` or by calling `LogicTreeETC.add_box()` method with `use_tex_rendering=True`), you must have a LaTeX installation available on your system.
 
@@ -194,10 +194,10 @@ sudo apt install texlive-latex-base texlive-fonts-recommended texlive-fonts-extr
 
 ---
 
-**🔔 Note:**  
+**Note:**  
 If you don’t plan to use LaTeX rendering in your plots, you can safely ignore these installation steps — LaTeX is not required to use the core functionality of this package.
 
-## 📄 License
+## License
 
 This project is licensed under a CC0 License. See LICENSE file for details.
 
