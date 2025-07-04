@@ -1,1 +1,5 @@
-__pycache__/
+logictree/__pycache__/
+dist/
+build/
+*.egg-info/
+docs/_build/

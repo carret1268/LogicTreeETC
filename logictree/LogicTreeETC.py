@@ -12,16 +12,19 @@ Here's a minimal example of how to build a logic tree diagram:
 >>> logic_tree = LogicTree(xlims=(0, 100), ylims=(0, 100), title="My Logic Tree")
 
 # Add some boxes
+
 >>> logic_tree.add_box(xpos=20, ypos=80, text="Start", box_name="Start", bbox_fc="black", bbox_ec="white", ha="center")
 >>> logic_tree.add_box(xpos=20, ypos=50, text="Decision", box_name="Decision", bbox_fc="black", bbox_ec="white", ha="center")
 >>> logic_tree.add_box(xpos=10, ypos=20, text="Option A", box_name="OptionA", bbox_fc="black", bbox_ec="green", ha="center")
 >>> logic_tree.add_box(xpos=30, ypos=20, text="Option B", box_name="OptionB", bbox_fc="black", bbox_ec="red", ha="center")
 
 # Connect boxes
+
 >>> logic_tree.add_connection(boxA=logic_tree.boxes["Start"], boxB=logic_tree.boxes["Decision"], arrow_head=True, arrow_width=2)
 >>> logic_tree.add_connection_biSplit(boxA=logic_tree.boxes["Decision"], boxB=logic_tree.boxes["OptionA"], boxC=logic_tree.boxes["OptionB"], arrow_head=True, arrow_width=2)
 
 # Add a title and save
+
 >>> logic_tree.make_title(pos="center")
 >>> logic_tree.save_as_png("logic_tree_example.png", dpi=300)
 
@@ -107,7 +110,7 @@ class LogicTree:
         
         # Font dictionary for title
         if font_dict_title is None:
-            font_dict_title = dict(fontname='Sitka', fontsize=34, color='white')
+            font_dict_title = dict(fontname='Times New Roman', fontsize=34, color='white')
         if title_color is not None:
             font_dict_title['color'] = title_color
         self.title_font = font_dict_title
@@ -115,8 +118,8 @@ class LogicTree:
         # Default font dictionary for boxes
         if font_dict is None:
             font_dict = {
-                'fontname': 'Leelawadee',
-                'fontsize': 14,
+                'fontname': 'Times New Roman',
+                'fontsize': 15,
                 'color': 'white'
             }
         if text_color is not None:
@@ -205,7 +208,8 @@ class LogicTree:
         ha: Literal['left', 'center', 'right'] = 'right', 
         use_tex_rendering: bool = False, 
         ul: bool = False, 
-        ul_depth_width: Optional[Tuple[float, float]] = None
+        ul_depth_width: Optional[Tuple[float, float]] = None,
+        angle: float = 0.0
     ) -> None:
         """
         Add a LogicBox to the LogicTree with specified text and styling.
@@ -242,6 +246,8 @@ class LogicTree:
             Underline text if LaTeX rendering is enabled.
         ul_depth_width : tuple of (float, float), optional
             Underline depth and width for LaTeX.
+        angle : float, optional
+            Angle in degrees to rotate your box. Rotations are about the center of the box.
 
         Raises
         ------
@@ -290,7 +296,7 @@ class LogicTree:
         myBox = LogicBox(
             xpos=xpos, ypos=ypos, text=text, box_name=box_name, 
             bbox_fc=bbox_fc, bbox_ec=bbox_ec, bbox_style=bbox_style, 
-            font_dict=font_dict, va=va, ha=ha, lw=lw
+            font_dict=font_dict, va=va, ha=ha, lw=lw, angle=angle
         )
         
         # add latex commands to text for underlining 
@@ -304,7 +310,7 @@ class LogicTree:
         # make the text
         txt = self.ax.text(
             x=myBox.x, y=myBox.y, s=text_str, fontdict=myBox.font_dict,
-            bbox=myBox.style, va=myBox.va, ha=myBox.ha
+            bbox=myBox.style, va=myBox.va, ha=myBox.ha, rotation=myBox.angle
         )
         
         # get our box's dims and edge positions to store in myBox object
@@ -429,7 +435,7 @@ class LogicTree:
                 path_left, path_right = self._get_pathsForBi_left_then_right(Ax2, Ay2, left_box=boxB, \
                                                                              right_box=boxC, tip_offset=tip_offset)
                 # make left arrow
-                arrow = ArrowETC(path=path_left, arrow_head=True, arrow_width=arrow_width)
+                arrow = ArrowETC(path=path_left, arrow_head=arrow_head, arrow_width=arrow_width)
                 # get vertices
                 x = arrow.x_vertices[:-1]
                 y = arrow.y_vertices[:-1]
@@ -439,7 +445,7 @@ class LogicTree:
                     self.ax.fill(x, y, color=fc_B)
                 
                 # make right arrow
-                arrow = ArrowETC(path=path_right, arrow_head=True, arrow_width=arrow_width)
+                arrow = ArrowETC(path=path_right, arrow_head=arrow_head, arrow_width=arrow_width)
                 # get vertices
                 x = arrow.x_vertices[:-1]
                 y = arrow.y_vertices[:-1]
@@ -453,7 +459,7 @@ class LogicTree:
                 # get paths
                 path_left, path_right = self._get_pathsForBi_left_then_right(Ax2, Ay2, left_box=boxC, right_box=boxB, tip_offset=tip_offset)
                 # make left arrow
-                arrow = ArrowETC(path=path_left, arrow_head=True, arrow_width=arrow_width)
+                arrow = ArrowETC(path=path_left, arrow_head=arrow_head, arrow_width=arrow_width)
                 # get vertices
                 x = arrow.x_vertices[:-1]
                 y = arrow.y_vertices[:-1]
@@ -463,7 +469,7 @@ class LogicTree:
                     self.ax.fill(x, y, color=fc_C)
                 
                 # make right arrow
-                arrow = ArrowETC(path=path_right, arrow_head=True, arrow_width=arrow_width)
+                arrow = ArrowETC(path=path_right, arrow_head=arrow_head, arrow_width=arrow_width)
                 # get vertices
                 x = arrow.x_vertices[:-1]
                 y = arrow.y_vertices[:-1]
@@ -485,7 +491,7 @@ class LogicTree:
                 Ay2 = (Ay1 + boxC.yBottom)/2
             # set path for downward segment
             path = [(Ax1, Ay1), (Ax2, Ay2)]
-            arrow = ArrowETC(path=path, arrow_head=False, arrow_width=arrow_width)
+            arrow = ArrowETC(path=path, arrow_head=arrow_head, arrow_width=arrow_width)
 
             # get vertices
             x = arrow.x_vertices[:-1]
@@ -501,7 +507,7 @@ class LogicTree:
                 path_left, path_right = self._get_pathsForBi_left_then_right(Ax2, Ay2, left_box=boxB, \
                                                                              right_box=boxC, tip_offset=tip_offset)
                 # make left arrow
-                arrow = ArrowETC(path=path_left, arrow_head=True, arrow_width=arrow_width)
+                arrow = ArrowETC(path=path_left, arrow_head=arrow_head, arrow_width=arrow_width)
                 # get vertices
                 x = arrow.x_vertices[:-1]
                 y = arrow.y_vertices[:-1]
@@ -511,7 +517,7 @@ class LogicTree:
                     self.ax.fill(x, y, color=fc_B)
                 
                 # make right arrow
-                arrow = ArrowETC(path=path_right, arrow_head=True, arrow_width=arrow_width)
+                arrow = ArrowETC(path=path_right, arrow_head=arrow_head, arrow_width=arrow_width)
                 # get vertices
                 x = arrow.x_vertices[:-1]
                 y = arrow.y_vertices[:-1]
@@ -525,7 +531,7 @@ class LogicTree:
                 # get paths
                 path_left, path_right = self._get_pathsForBi_left_then_right(Ax2, Ay2, left_box=boxC, right_box=boxB, tip_offset=tip_offset)
                 # make left arrow
-                arrow = ArrowETC(path=path_left, arrow_head=True, arrow_width=arrow_width)
+                arrow = ArrowETC(path=path_left, arrow_head=arrow_head, arrow_width=arrow_width)
                 # get vertices
                 x = arrow.x_vertices[:-1]
                 y = arrow.y_vertices[:-1]
@@ -535,7 +541,7 @@ class LogicTree:
                     self.ax.fill(x, y, color=fc_C)
                 
                 # make right arrow
-                arrow = ArrowETC(path=path_right, arrow_head=True, arrow_width=arrow_width)
+                arrow = ArrowETC(path=path_right, arrow_head=arrow_head, arrow_width=arrow_width)
                 # get vertices
                 x = arrow.x_vertices[:-1]
                 y = arrow.y_vertices[:-1]
@@ -726,6 +732,7 @@ class LogicTree:
         dpi : int, optional
             Resolution of the output image. Default is 800.
         """
+        self.ax.set_aspect('equal')
         self.fig.savefig(file_name, dpi=dpi, bbox_inches='tight')
 
 __all__ = ["LogicTree"]

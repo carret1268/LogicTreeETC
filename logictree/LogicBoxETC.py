@@ -42,6 +42,8 @@ class LogicBox:
         Vertical alignment, one of ["top", "center", "bottom"]. Default is "center".
     ha : str, optional
         Horizontal alignment, one of ["left", "center", "right"]. Default is "left".
+    angle : float, optional
+        Angle in degrees to rotate your box. Rotations are about the center of the box.
 
     Raises
     ------
@@ -88,7 +90,8 @@ class LogicBox:
         bbox_style: Optional[BoxStyle] = BoxStyle('Square', pad=0.5), 
         lw: float = 1.6, 
         va: Literal['top', 'center', 'bottom'] = 'center', 
-        ha: Literal['left', 'center', 'right'] = 'left'
+        ha: Literal['left', 'center', 'right'] = 'left',
+        angle: float = 0.0
     ) -> None:
         # data validation for literals (va and ha parameters)
         if va not in ("top", "center", "bottom"):
@@ -112,6 +115,7 @@ class LogicBox:
         self.va = va
         self.ha = ha
         self.lw = lw
+        self.angle = angle
         self.xLeft = None
         self.xRight = None
         self.yBottom = None

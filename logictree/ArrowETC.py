@@ -1,11 +1,69 @@
-"""ArrowETC module for creating multi-segmented arrows with explicit vertex control.
-
-This module defines the ArrowETC class, which allows building complex
-arrows composed of multiple line segments aligned along the x and y axes.
-It enables precise control over arrow geometry for logic tree diagrams,
-flowcharts, and custom annotations.
 """
+ArrowETC module for creating multi-segmented arrows and path-based shapes with explicit vertex control.
 
+This module defines the ArrowETC class, which allows building complex polygonal
+shapes by connecting multiple line segments in sequence. While it can produce
+classic arrows with optional arrowheads, it can also create segmented rectangles
+and arbitrary paths useful for connectors, pipes, or other linear features
+in logic tree diagrams, flowcharts, or technical illustrations.
+
+ArrowETC stores extensive metadata for each arrow, including segment lengths,
+angles, and a complete set of polygon vertices outlining the arrow body. These
+attributes remain accessible after construction, enabling downstream tasks such as
+collision detection, dynamic alignment, or generating custom labels tied to
+specific arrow joints.
+
+**WARNING**: ArrowETC assumes the arrows or segmented shapes will be plotted
+in an environment with an **equal aspect ratio**. The saved or displayed
+arrow polygon does not automatically account for distorted aspect ratios—if you
+use an unequal aspect ratio (e.g., `ax.set_aspect('auto')`), your shapes may appear
+skewed or "out of whack." It is the user's responsibility to either:
+1) ensure plots using ArrowETC have an equal aspect ratio, or
+2) manually transform the arrow vertices to compensate for an intended uneven aspect ratio.
+
+Features
+---------
+- Explicit calculation of each vertex, including miter joints at corners.
+- Supports straight and multi-bend paths with arbitrary angles.
+- Optional flared arrowhead at the final path point.
+- Suitable for creating segmented rectangles (shaft-only shapes) by disabling the arrowhead.
+- Stores metadata such as:
+  - `self.vertices`: polygon vertex coordinates,
+  - `self.segment_lengths`: lengths of all segments,
+  - `self.path_angles`: angles each segment makes with the x-axis.
+
+Examples
+---------
+Basic arrow with head:
+
+>>> from logictree.ArrowETC import ArrowETC
+>>> arrow = ArrowETC(path=[(0, 0), (0, 5)], arrow_width=1.5, arrow_head=True)
+>>> arrow.save_arrow(name='example_arrow.png')
+
+Segmented rectangular path without arrowhead:
+
+>>> rect_arrow = ArrowETC(path=[(0, 0), (5, 0), (5, -3)], arrow_width=1.0, arrow_head=False)
+>>> rect_arrow.save_arrow(name='segmented_rect.png')
+
+Plotting in a custom figure:
+
+>>> import matplotlib.pyplot as plt
+>>> fig, ax = plt.subplots()
+>>> ax.set_aspect('equal')
+>>> ax.fill(rect_arrow.x_vertices, rect_arrow.y_vertices, color='lightblue')
+>>> ax.plot(rect_arrow.x_vertices, rect_arrow.y_vertices, color='black')
+>>> plt.show()
+
+Typical use cases
+------------------
+- Drawing arrows or right-angle connectors in logic diagrams.
+- Building segmented pipes, buses, or flow lines with multiple corners.
+- Aligning shapes precisely in custom diagrams using stored vertex metadata.
+
+Dependencies
+-------------
+- Python packages: numpy, matplotlib.
+"""
 from typing import List, Optional, Tuple 
 
 import matplotlib.pyplot as plt
@@ -116,6 +174,7 @@ class ArrowETC:
             if i == 0:
                 vert = self._get_first_vertex(Ax, Ay, theta_1)
                 vertices.append(vert)
+            
             # Get the vertex
             vert = self._vertex_from_angle(Bx, By, theta_1, theta_2)
             vertices.append(vert)
@@ -124,13 +183,11 @@ class ArrowETC:
         if self.arrow_head:
             B = vertices[-1]
             Bx, By = B[0], B[1]
-            verts = self._get_arrow_head_vertices(Bx, By, path[-1][0], path[-1][1], theta_1)
+            verts = self._get_arrow_head_vertices(path[-1][0], path[-1][1], theta_1)
             # replace last vertex with new one to make room for arrow head
             vertices[-1] = verts[0]
             # fill in the 3 vertices of arrow head
-            for point in verts[1:]:
-                vertices.append(point)
-    
+            vertices.extend(verts[1:])
             
         # now iterate through path backwards to get the last half of vertices
         path = path[::-1]
@@ -154,289 +211,157 @@ class ArrowETC:
         return np.array(vertices, dtype=float)
 
     def _get_arrow_head_vertices(
-        self, 
-        Bx: float, 
-        By: float, 
-        tipx: float, 
-        tipy: float, 
+        self,
+        tipx: float,
+        tipy: float,
         theta_1: float
     ) -> List[np.ndarray]:
         """
-        Calculate vertices needed to draw the arrowhead.
-
-        This method computes the vertices forming the arrowhead polygon
-        based on the final arrow segment direction and specified dimensions.
-        It also adjusts the last shaft vertex to make space for the arrowhead.
-
-        Parameters
-        ----------
-        Bx, By : float
-            Coordinates of the last shaft vertex before the arrowhead.
-        tipx, tipy : float
-            Coordinates of the arrow tip.
-        theta_1 : float
-            Angle of the final arrow segment in radians.
-
-        Returns
-        -------
-        list of ndarray
-            List of (x, y) points forming the arrowhead polygon.
+        Calculate five points forming the arrowhead with shaft sides extending
+        straight to the arrowhead base line without kinks.
+        Returns [A, left_base, tip, right_base, E].
         """
-        width = self.arrow_width
-        arrow_head_width = width*0.55
-        arrow_head_angle = 50*np.pi/180 # angle vertex0 and vert2 make with tip (vert1)
-        tip_to_tip_dist = np.tan(arrow_head_angle)*(arrow_head_width + width/2)
-        # 4 cases
-        verts = []
-        if theta_1 == 0:
-            # move last vertex back
-            vertx = Bx - tip_to_tip_dist
-            verty = By
-            verts.append(np.array([vertx, verty], dtype=float))
-            # get first head vertex
-            vertx = vertx
-            verty = verty + arrow_head_width
-            verts.append(np.array([vertx, verty], dtype=float))
-            # get tip of arrow
-            vertx = tipx
-            verty = tipy
-            verts.append(np.array([vertx, verty], dtype=float))
-            # get last vertex of arrow
-            vertx = verts[0][0]
-            verty = verts[0][1] - width - arrow_head_width
-            verts.append(np.array([vertx, verty], dtype=float))
-            # complete the cycle putting us back on the base arrow body
-            vertx = vertx
-            verty = verty + arrow_head_width
-            verts.append(np.array([vertx, verty], dtype=float))
-        elif theta_1 == np.pi/2:
-            # move last vertex down
-            vertx = Bx
-            verty = By - tip_to_tip_dist
-            verts.append(np.array([vertx, verty], dtype=float))
-            # get first head vertex
-            vertx = vertx - arrow_head_width
-            verty = verty
-            verts.append(np.array([vertx, verty], dtype=float))
-            # get tip of arrow
-            vertx = tipx
-            verty = tipy
-            verts.append(np.array([vertx, verty], dtype=float))
-            # get last vertex of arrow
-            vertx = verts[0][0] + width + arrow_head_width
-            verty = verts[0][1]
-            verts.append(np.array([vertx, verty], dtype=float))
-            # complete the cycle putting us back on the base arrow body
-            vertx = vertx - arrow_head_width
-            verty = verty
-            verts.append(np.array([vertx, verty], dtype=float))
-        elif theta_1 == np.pi:
-            # move last vertex back
-            vertx = Bx + tip_to_tip_dist
-            verty = By
-            verts.append(np.array([vertx, verty], dtype=float))
-            # get first head vertex
-            vertx = vertx
-            verty = verty - arrow_head_width
-            verts.append(np.array([vertx, verty], dtype=float))
-            # get tip of arrow
-            vertx = tipx
-            verty = tipy
-            verts.append(np.array([vertx, verty], dtype=float))
-            # get last vertex of arrow
-            vertx = verts[0][0]
-            verty = verts[0][1] + width + arrow_head_width
-            verts.append(np.array([vertx, verty], dtype=float))
-            # complete the cycle putting us back on the base arrow body
-            vertx = vertx
-            verty = verty - arrow_head_width
-            verts.append(np.array([vertx, verty], dtype=float))
-        elif theta_1 == 3*np.pi/2:
-            # move last vertex back
-            vertx = Bx
-            verty = By + tip_to_tip_dist
-            verts.append(np.array([vertx, verty], dtype=float))
-            # get first head vertex
-            vertx = vertx + arrow_head_width
-            verty = verty
-            verts.append(np.array([vertx, verty], dtype=float))
-            # get tip of arrow
-            vertx = tipx
-            verty = tipy
-            verts.append(np.array([vertx, verty], dtype=float))
-            # get last vertex of arrow
-            vertx = verts[0][0] - width - arrow_head_width
-            verty = verts[0][1]
-            verts.append(np.array([vertx, verty], dtype=float))
-            # complete the cycle putting us back on the base arrow body
-            vertx = vertx + arrow_head_width
-            verty = verty
-            verts.append(np.array([vertx, verty], dtype=float))
+        shaft_width = self.arrow_width
+        head_width = shaft_width * 2.0
+        head_length = shaft_width * 1.5
 
-        return verts
+        # Unit vectors
+        dir_x, dir_y = np.cos(theta_1), np.sin(theta_1)
+        perp_x, perp_y = -dir_y, dir_x
+
+        # Tip point
+        tip = np.array([tipx, tipy], dtype=float)
+
+        # Base center: base of the arrowhead along shaft
+        base_cx = tipx - head_length * dir_x
+        base_cy = tipy - head_length * dir_y
+
+        # Left and right points on the arrowhead base line
+        left_base = np.array([
+            base_cx + (head_width / 2) * perp_x,
+            base_cy + (head_width / 2) * perp_y
+        ])
+        right_base = np.array([
+            base_cx - (head_width / 2) * perp_x,
+            base_cy - (head_width / 2) * perp_y
+        ])
+
+        # Shaft left line: parallel to shaft, offset by +shaft_width/2
+        shaft_dx, shaft_dy = dir_x, dir_y
+        shaft_left_point = np.array([
+            base_cx + (shaft_width/2) * perp_x,
+            base_cy + (shaft_width/2) * perp_y
+        ])
+
+        # Shaft right line: parallel to shaft, offset by -shaft_width/2
+        shaft_right_point = np.array([
+            base_cx - (shaft_width/2) * perp_x,
+            base_cy - (shaft_width/2) * perp_y
+        ])
+
+        def line_intersection(p1, d1, p2, d2):
+            """
+            Computes intersection of lines p1 + t*d1 and p2 + s*d2.
+            """
+            A = np.array([d1, -d2]).T
+            if np.linalg.matrix_rank(A) < 2:
+                # Parallel lines: return base point directly to avoid NaN
+                return p2
+            t_s = np.linalg.solve(A, p2 - p1)
+            return p1 + t_s[0]*d1
+
+        # Compute A: where shaft left edge intersects base line
+        A = line_intersection(
+            shaft_left_point, np.array([shaft_dx, shaft_dy]),
+            left_base, right_base - left_base
+        )
+
+        # Compute E: where shaft right edge intersects base line
+        E = line_intersection(
+            shaft_right_point, np.array([shaft_dx, shaft_dy]),
+            left_base, right_base - left_base
+        )
+
+        return [A, left_base, tip, right_base, E]
+
     
     def _get_first_vertex(self, Ax: float, Ay: float, theta_1: float) -> np.ndarray:
         """
-        Calculate the first vertex of the arrow shaft polygon.
-
-        Used to determine the initial side vertex at the base of the arrow,
-        based on the starting path point and direction of the first segment.
-
-        Parameters
-        ----------
-        Ax, Ay : float
-            Coordinates of the starting point of the arrow path.
-        theta_1 : float
-            Angle of the first arrow segment in radians.
-
-        Returns
-        -------
-        ndarray of float
-            Coordinates of the first vertex as [x, y].
+        Calculate the first side vertex at the butt of the arrow,
+        offset perpendicular to the first segment angle.
         """
-        width = self.arrow_width
-        if theta_1 == 0:
-            vertx = Ax
-            verty = Ay + width/2
-            vert = np.array([vertx, verty], dtype=float)
-        elif theta_1 == np.pi/2:
-            vertx = Ax - width/2
-            verty = Ay
-            vert = np.array([vertx, verty], dtype=float)
-        elif theta_1 == np.pi:
-            vertx = Ax
-            verty = Ay - width/2
-            vert = np.array([vertx, verty], dtype=float)
-        elif theta_1 == 3*np.pi/2:
-            vertx = Ax + width/2
-            verty = Ay
-            vert = np.array([vertx, verty], dtype=float) 
+        w2 = self.arrow_width / 2
+        offset_angle = theta_1 + np.pi/2  # left side offset
+        dx = w2 * np.cos(offset_angle)
+        dy = w2 * np.sin(offset_angle)
 
-        return vert
+        return np.array([Ax + dx, Ay + dy])
             
     def _vertex_from_angle(self, Bx: float, By: float, theta_1: float, theta_2: Optional[float]) -> np.ndarray:
         """
-        Calculate a polygon vertex at a path joint.
-
-        Given two segment angles, computes the intersection point of the
-        two sides of the arrow at the joint.
+        Calculate a polygon vertex at a joint between two arbitrary segments,
+        using miter-join logic to produce sharp corners without kinks.
 
         Parameters
         ----------
         Bx, By : float
-            Coordinates of the joint between two segments.
+            Coordinates of the joint between segments.
         theta_1 : float
-            Angle of the incoming segment.
+            Angle of incoming segment.
         theta_2 : float or None
-            Angle of the outgoing segment, or None if it's the last segment.
+            Angle of outgoing segment. None if it's the last segment.
 
         Returns
         -------
         ndarray of float
             Coordinates of the calculated vertex as [x, y].
         """
-        width = self.arrow_width
-        # first when there is a segment ahead
-        if ((theta_1 == 0) and (theta_2 == np.pi/2)) or ((theta_1 == np.pi/2) and (theta_2 == 0)):
-            vertx = Bx - width/2
-            verty = By + width/2
-            vert = np.array([vertx, verty], dtype=float)
-        elif ((theta_1 == 0) and (theta_2 == 3*np.pi/2)) or ((theta_1 == 3*np.pi/2) and (theta_2 == 0)):
-            vertx = Bx + width/2
-            verty = By + width/2
-            vert = np.array([vertx, verty], dtype=float)
-        elif ((theta_1 == np.pi) and (theta_2 == np.pi/2)) or ((theta_1 == np.pi/2) and (theta_2 == np.pi)):
-            vertx = Bx - width/2
-            verty = By - width/2
-            vert = np.array([vertx, verty], dtype=float)
-        elif ((theta_1 == np.pi) and (theta_2 == 3*np.pi/2)) or ((theta_1 == 3*np.pi/2) and (theta_2 == np.pi)):
-            vertx = Bx + width/2
-            verty = By - width/2
-            vert = np.array([vertx, verty], dtype=float)
-        # now if there is no segment ahead
-        elif (theta_1 == 0) and (theta_2 is None):
-            vertx = Bx
-            verty = By + width/2
-            vert = np.array([vertx, verty], dtype=float)
-        elif (theta_1 == np.pi/2) and (theta_2 is None):
-            vertx = Bx - width/2
-            verty = By
-            vert = np.array([vertx, verty], dtype=float)
-        elif (theta_1 == np.pi) and (theta_2 is None):
-            vertx = Bx
-            verty = By - width/2
-            vert = np.array([vertx, verty], dtype=float)
-        elif (theta_1 == 3*np.pi/2) and (theta_2 is None):
-            vertx = Bx + width/2
-            verty = By
-            vert = np.array([vertx, verty], dtype=float)
-        return vert
+        w2 = self.arrow_width / 2
+        point = np.array([Bx, By], dtype=float)
+
+        dir1 = np.array([np.cos(theta_1), np.sin(theta_1)])
+        perp1 = np.array([-dir1[1], dir1[0]])
+        A = point + w2 * perp1
+        dA = dir1
+
+        if theta_2 is None:
+            return A
+
+        dir2 = np.array([np.cos(theta_2), np.sin(theta_2)])
+        perp2 = np.array([-dir2[1], dir2[0]])
+        B = point + w2 * perp2
+        dB = dir2
+
+        mat = np.column_stack((dA, -dB))
+        if np.linalg.matrix_rank(mat) < 2:
+            avg_normal = (perp1 + perp2) / 2
+            avg_normal /= np.linalg.norm(avg_normal)
+            return point + w2 * avg_normal
+
+        t = np.linalg.solve(mat, B - A)[0]
+        return A + t * dA
     
     def _get_angles(self, path: List[Tuple[float, float]]) -> List[float]:
         """
-        Calculate angles each segment makes with the positive x-axis.
-
-        Each segment is defined by consecutive points in the path. Only
-        horizontal or vertical segments aligned with the x or y axes are allowed.
+        Calculate angles each segment makes with the positive x-axis,
+        allowing arbitrary directions.
 
         Parameters
         ----------
-        path : list of tuple of float
-            List of points defining the arrow path.
+        path : list of (x, y)
+            Arrow path points.
 
         Returns
         -------
         list of float
-            Angles in radians of each segment relative to the +x axis.
-
-        Raises
-        ------
-        ValueError
-            If any segment does not align exactly with the x or y axis.
+            Angles (radians) of each segment relative to +x axis.
         """
         angles = []
         for i in range(self.n_segments):
-            # get the next two neighboring points starting at 'butt'
-            p1, p2 = path[i], path[i+1]
-            x1, y1 = p1[0], p1[1]
-            x2, y2 = p2[0], p2[1]
-            
-            # for (+) horizontal line
-            if (x2 > x1) and (y2 == y1):
-                theta = 0
-            # for (+) vertical line
-            elif (x2 == x1) and (y2 > y1):
-                theta = np.pi/2
-            # for (-) horizontal line
-            elif (x2 < x1) and (y2 == y1):
-                theta = np.pi
-            # for (-) vertical line
-            elif (x2 == x1) and (y2 < y1):
-                theta = 3*np.pi/2
-            # Get the angles starting with Quadrant 1
-            elif (x2 > x1) and (y2 > y1):
-                theta = np.arctan((y2-y1)/(x2-x1))
-            # Quadrant 2
-            elif (x2 < x1) and (y2 > y1):
-                # start with angle CCW from (+) vertical
-                phi = np.arctan((x2-x1)/(y2-y1))
-                theta = np.pi/2 + abs(phi)
-            # Quadrant 3
-            elif (x2 < x1) and (y2 < y1):
-                # start with angle CCW from (-) horizontal
-                phi = np.arctan((y2-y1)/(x2-x1))
-                theta = np.pi + abs(phi)
-            # Quadrant 4
-            else:
-                # start with angle CW from (+) horizontal
-                phi = np.arctan((y2-y1)/(x2-x1))
-                theta = 2*np.pi - abs(phi)
-            # throw an error for non-Right angles
-            if (theta != 0) and (theta != np.pi) and (theta != np.pi/2) and (theta != 3*np.pi/2):
-                raise ValueError(
-                    f"The arrow path must be limited to straight line segments along +/- x or y axes. "
-                    f"The segment between point {p1} and point {p2} does not fall on an axis."
-                )
+            p1, p2 = path[i], path[i + 1]
+            dx = p2[0] - p1[0]
+            dy = p2[1] - p1[1]
+            theta = np.arctan2(dy, dx) % (2 * np.pi)
             angles.append(theta)
 
         return angles
@@ -460,7 +385,7 @@ class ArrowETC:
 
         return distances
     
-    def show_arrow(self, ec: str = 'white', fc: str = 'cyan', lw: float = 0.6) -> None:
+    def save_arrow(self, name: str = './arrow.png', ec: str = 'white', fc: str = 'cyan', lw: float = 0.6) -> None:
         """
         Display the arrow using matplotlib.
 
@@ -469,6 +394,8 @@ class ArrowETC:
 
         Parameters
         ----------
+        name : str, optional
+            Name / path of the resulting png. Default is './arrow.png'.
         ec : str, optional
             Edge color of the arrow outline. Default is 'white'.
         fc : str, optional
@@ -494,5 +421,8 @@ class ArrowETC:
         # plot lines and vertices
         ax.plot(x, y, color=ec, lw=lw, zorder=100)
         ax.fill(x, y, color=fc)
+        ax.set_aspect('equal')
+        
+        plt.savefig(name)
                     
 __all__ = ["ArrowETC"]

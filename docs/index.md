@@ -47,6 +47,16 @@ The `ArrowETC` class **assumes an equal aspect ratio** (i.e., 1:1 x/y scaling). 
 
 ---
 
+## API Documentation
+
+```{toctree}
+:maxdepth: 2
+
+modules
+```
+
+---
+
 ## 🔥 Examples
 
 ### Example 1: Decision Tree for Non-Targeted Analysis (NTA)
@@ -58,10 +68,10 @@ Creates a logic tree showing how samples progress through replicate, CV, and MDL
 - Connecting boxes with arrows and bifurcations
 
 <p align="center">
-  <img src="examples/DecisionTree_NTA-Example.png" alt="Decision Tree for NTA" width="600"/>
+  <img src="_static/DecisionTree_NTA-Example.png" alt="Decision Tree for NTA" width="600"/>
 </p>
 
-See [examples/decisionTreeNTAExample.py](examples/decisionTreeNTAExample.py) for full code.
+See [decisionTreeNTAExample.py on GitHub](https://github.com/carret1268/logicTreeETC/blob/main/examples/decisionTreeNTAExample.py) for full code.
 
 ---
 
@@ -70,10 +80,10 @@ See [examples/decisionTreeNTAExample.py](examples/decisionTreeNTAExample.py) for
 Shows a recommended sequence for learning key data structures, from arrays to graphs, with arrows indicating the progression.
 
 <p align="center">
-  <img src="examples/DecisionTree_DSA-Example.png" alt="DSA Study Order" width="600"/>
+  <img src="_static/DecisionTree_DSA-Example.png" alt="DSA Study Order" width="600"/>
 </p>
 
-See [examples/decisionTreeDSAExample.py](examples/decisionTreeDSAExample.py) for full code.
+See [examples/decisionTreeDSAExample.py on GitHub](https://github.com/carret1268/logicTreeETC/blob/main/examples/decisionTreeDSAExmple.py) for full code.
 
 ---
 
@@ -188,3 +198,4 @@ If you don’t plan to use LaTeX rendering in your plots, you can safely ignore 
 ## 📄 License
 
 This project is licensed under a CC0 License. See LICENSE file for details.
+
