@@ -40,10 +40,10 @@ jobs:
       run: ruff format --check .
 
     - name: Run static typechecker (Mypy)
-      run: mypy arrowetc/
+      run: mypy logictree/
 
     - name: Run security check (Bandit)
-      run: bandit -r arrowetc
+      run: bandit -r logictree
 
     # - name: Run tests with coverage
     #   run: |

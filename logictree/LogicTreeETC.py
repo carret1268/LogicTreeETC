@@ -862,7 +862,10 @@ class LogicTree:
                 x_left = self.boxes[box].xLeft
                 x_right = self.boxes[box].xRight
 
-                assert x_left is not None and x_right is not None
+                if x_left is None or x_right is None:
+                    raise ValueError(
+                        f"LogicBox '{box}' layout not initialized: xLeft or xRight is None."
+                    )
 
                 if x_left < xFarLeft:
                     xFarLeft = x_left
