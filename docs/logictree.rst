@@ -4,14 +4,6 @@ logictree package
 Submodules
 ----------
 
-logictree.ArrowETC module
--------------------------
-
-.. automodule:: logictree.ArrowETC
-   :members:
-   :show-inheritance:
-   :undoc-members:
-
 logictree.LogicBoxETC module
 ----------------------------
 

@@ -356,7 +356,12 @@ class LogicTree:
             # if underlining parameters are set, add the command to change them
             if ul_depth_width is not None:
                 text_str = (
-                    f"\\setul{{{ul_depth_width[0]}}}{{{ul_depth_width[1]}}}" + text_str
+                    r"\setul{"
+                    + f"{ul_depth_width[0]}pt"
+                    + r"}{" 
+                    + f"{ul_depth_width[1]}pt"
+                    + r"}"
+                    + text_str
                 )
         else:
             text_str = myBox.text
@@ -765,6 +770,8 @@ class LogicTree:
             elif boxA.xCenter > boxB.xCenter:
                 Ax, Ay = boxA.xLeft - butt_offset, boxA.yCenter
                 Bx, By = boxB.xRight + tip_offset, boxB.yCenter
+            else:
+                raise ValueError("Boxes must be aligned horizontally or vertically to create a connection.")
             path = [(Ax, Ay), (Bx, By)]
         # second case, boxA is below boxB
         elif boxA.yCenter < boxB.yCenter:
@@ -913,7 +920,6 @@ class LogicTree:
             to prevent your boxes from touching the edge of the figures.
         """
         self.ax.set_aspect("equal")
-        # self.fig.subplots_adjust(right=28)
         self.fig.savefig(
             file_name, dpi=dpi, bbox_inches="tight", pad_inches=content_padding
         )
