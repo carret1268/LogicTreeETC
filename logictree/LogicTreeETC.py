@@ -30,7 +30,6 @@ Here's a minimal example of how to build a logic tree diagram:
 
 Notes
 -----
-- ArrowETC connectors are limited to straight lines with right-angle bends (90-degree only).
 - If LaTeX rendering is enabled, packages such as bm, amsmath, soul, and relsize must be installed.
 """
 
@@ -41,6 +40,7 @@ import matplotlib.pyplot as plt
 
 from arrowetc import ArrowETC
 from .LogicBoxETC import LogicBox
+
 
 class LogicTree:
     """
@@ -91,62 +91,65 @@ class LogicTree:
     latex_ul_depth, latex_ul_width : str
         Settings for LaTeX underlining (depth and width).
     """
+
     def __init__(
         self,
         fig_size: Tuple[float, float] = (9, 9),
         xlims: Tuple[float, float] = (0, 100),
         ylims: Tuple[float, float] = (0, 100),
-        fig_fc: str = 'black',
+        fig_fc: str = "black",
         title: Optional[str] = None,
         font_dict: Optional[Dict[str, Any]] = None,
         font_dict_title: Optional[Dict[str, Any]] = None,
         text_color: Optional[str] = None,
         title_color: Optional[str] = None,
     ) -> None:
-        self.boxes = {}  
+        self.boxes: Dict[str, LogicBox] = {}
         self.title = title
         self.xlims = xlims
         self.ylims = ylims
-        
+
         # Font dictionary for title
         if font_dict_title is None:
-            font_dict_title = dict(fontname='Times New Roman', fontsize=34, color='white')
+            font_dict_title = dict(
+                fontname="Times New Roman", fontsize=34, color="white"
+            )
         if title_color is not None:
-            font_dict_title['color'] = title_color
+            font_dict_title["color"] = title_color
         self.title_font = font_dict_title
-        
+
         # Default font dictionary for boxes
         if font_dict is None:
             font_dict = {
-                'fontname': 'Times New Roman',
-                'fontsize': 15,
-                'color': 'white'
+                "fontname": "Times New Roman",
+                "fontsize": 15,
+                "color": "white",
             }
         if text_color is not None:
-            font_dict['color'] = text_color
+            font_dict["color"] = text_color
         self.font_dict = font_dict
-        
+
         # Underlining options for LaTeX rendering
-        self.latex_ul_depth = '1pt'
-        self.latex_ul_width = '1pt'
-        
+        self.latex_ul_depth = "1pt"
+        self.latex_ul_width = "1pt"
+
         # Generate figure and axes
         fig, ax = plt.subplots(figsize=fig_size, frameon=True, facecolor=fig_fc)
         ax.set_xlim(xlims[0], xlims[1])
         ax.set_ylim(ylims[0], ylims[1])
-        ax.axis('off')
+        ax.axis("off")
         fig.canvas.draw_idle()
-        
+
         self.fig = fig
         self.ax = ax
-        
+
     def _get_pathsForBi_left_then_right(
-        self, 
-        Ax2: float, 
-        Ay2: float, 
-        left_box: LogicBox, 
-        right_box: LogicBox, 
-        tip_offset: float
+        self,
+        Ax2: float,
+        Ay2: float,
+        left_box: LogicBox,
+        right_box: LogicBox,
+        tip_offset: float,
     ) -> Tuple[List[Tuple[float, float]], List[Tuple[float, float]]]:
         """
         Generate the paths for a bifurcating connection with left and right branches.
@@ -167,49 +170,82 @@ class LogicTree:
         -------
         tuple of list of tuple
             Paths for the left and right connections, each a list of (x, y) points.
+
+        Raises
+        ------
+        ValueError
+            If `yTop`, `yBottom`, xCenter or `yCenter` are None because the layout has
+            not yet been initialized. This is for either left_box or right_box.
         """
+        if (
+            left_box.yTop is None
+            or left_box.yBottom is None
+            or left_box.xCenter is None
+            or left_box.yCenter is None
+        ):
+            raise ValueError(
+                "left_box LogicBox layout not initialized before accessing coordinates."
+            )
+        if (
+            right_box.yTop is None
+            or right_box.yBottom is None
+            or right_box.xCenter is None
+            or right_box.yCenter is None
+        ):
+            raise ValueError(
+                "right_box LogicBox layout not initialized before accessing coordinates."
+            )
+
         # create the leftward arrow
         Lx1 = Ax2
         Ly1 = Ay2
-        Lx2 = left_box.x_center
+        Lx2 = left_box.xCenter
         Ly2 = Ly1
         Lx3 = Lx2
-        Ly3 = left_box.yTop + tip_offset if Ay2 > left_box.y_center else left_box.yBottom - tip_offset
-        
+        Ly3 = (
+            left_box.yTop + tip_offset
+            if Ay2 > left_box.yCenter
+            else left_box.yBottom - tip_offset
+        )
+
         # create the rightward arrow
         Rx1 = Ax2
         Ry1 = Ay2
-        Rx2 = right_box.x_center
+        Rx2 = right_box.xCenter
         Ry2 = Ry1
         Rx3 = Rx2
-        Ry3 = right_box.yTop + tip_offset if Ay2 > right_box.y_center else right_box.yBottom - tip_offset
+        Ry3 = (
+            right_box.yTop + tip_offset
+            if Ay2 > right_box.yCenter
+            else right_box.yBottom - tip_offset
+        )
 
         # set paths
         path_left = [(Lx1, Ly1), (Lx2, Ly2), (Lx3, Ly3)]
         path_right = [(Rx1, Ry1), (Rx2, Ry2), (Rx3, Ry3)]
 
-        return path_left, path_right    
+        return path_left, path_right
 
     def add_box(
-        self, 
-        xpos: float, 
-        ypos: float, 
-        text: str, 
-        box_name: str, 
-        bbox_fc: str, 
-        bbox_ec: str, 
+        self,
+        xpos: float,
+        ypos: float,
+        text: str,
+        box_name: str,
+        bbox_fc: str,
+        bbox_ec: str,
         font_dict: Optional[Dict[str, Any]] = None,
-        text_color: Optional[str] = None, 
-        fs: Optional[int] = None, 
-        font_weight: Optional[float] = None, 
+        text_color: Optional[str] = None,
+        fs: Optional[int] = None,
+        font_weight: Optional[float] = None,
         lw: float = 1.6,
-        bbox_style: BoxStyle = BoxStyle('Round', pad=0.6), 
-        va: Literal['top', 'center', 'bottom'] = 'center', 
-        ha: Literal['left', 'center', 'right'] = 'right', 
-        use_tex_rendering: bool = False, 
-        ul: bool = False, 
+        bbox_style: BoxStyle = BoxStyle("Round", pad=0.6),
+        va: Literal["top", "center", "bottom"] = "center",
+        ha: Literal["left", "center", "right"] = "right",
+        use_tex_rendering: bool = False,
+        ul: bool = False,
         ul_depth_width: Optional[Tuple[float, float]] = None,
-        angle: float = 0.0
+        angle: float = 0.0,
     ) -> None:
         """
         Add a LogicBox to the LogicTree with specified text and styling.
@@ -253,9 +289,13 @@ class LogicTree:
         ------
         ValueError
             If `box_name` is already used.
+        ValueError
+            If the rendered text object has no bounding box patch.
         """
         if box_name in self.boxes:
-            raise ValueError(f"Box name '{box_name}' already exists. Please use a unique name.")
+            raise ValueError(
+                f"Box name '{box_name}' already exists. Please use a unique name."
+            )
 
         # option to use latex rendering (minimal font options with latex, so not default)
         if use_tex_rendering:
@@ -271,81 +311,108 @@ class LogicTree:
             )
 
             # update rcParams to use latex
-            plt.rcParams.update({
-                "text.usetex": True,
-                "font.family": "cm",
-                'text.latex.preamble': latex_preamble
-            })
+            plt.rcParams.update(
+                {
+                    "text.usetex": True,
+                    "font.family": "cm",
+                    "text.latex.preamble": latex_preamble,
+                }
+            )
         else:
             plt.rcParams.update({"text.usetex": False})
-            
+
         # set fontidct of not provided
         if font_dict is None:
             font_dict = self.font_dict.copy()
         # if specific text color is specified, change it in font_dict
         if text_color is not None:
-            font_dict['color'] = text_color
+            font_dict["color"] = text_color
         # if specific fontsize is specified, change it in font_dict
         if fs is not None:
-            font_dict['fontsize'] = fs
+            font_dict["fontsize"] = fs
         # if weight is specified, change it in font_dict
         if font_weight is not None:
-            font_dict['weight'] = font_weight
-            
+            font_dict["weight"] = font_weight
+
         # create a logicBox object which stores all of this information
         myBox = LogicBox(
-            xpos=xpos, ypos=ypos, text=text, box_name=box_name, 
-            bbox_fc=bbox_fc, bbox_ec=bbox_ec, bbox_style=bbox_style, 
-            font_dict=font_dict, va=va, ha=ha, lw=lw, angle=angle
+            xpos=xpos,
+            ypos=ypos,
+            text=text,
+            box_name=box_name,
+            bbox_fc=bbox_fc,
+            bbox_ec=bbox_ec,
+            bbox_style=bbox_style,
+            font_dict=font_dict,
+            va=va,
+            ha=ha,
+            lw=lw,
+            angle=angle,
         )
-        
-        # add latex commands to text for underlining 
+
+        # add latex commands to text for underlining
         if use_tex_rendering and (ul or ul_depth_width is not None):
-            text_str = r'\ul{' + myBox.text + r'}'
+            text_str = r"\ul{" + myBox.text + r"}"
             # if underlining parameters are set, add the command to change them
             if ul_depth_width is not None:
-                text_str = f'\\setul{{{ul_depth_width[0]}}}{{{ul_depth_width[1]}}}' + text_str
+                text_str = (
+                    f"\\setul{{{ul_depth_width[0]}}}{{{ul_depth_width[1]}}}" + text_str
+                )
         else:
             text_str = myBox.text
         # make the text
         txt = self.ax.text(
-            x=myBox.x, y=myBox.y, s=text_str, fontdict=myBox.font_dict,
-            bbox=myBox.style, va=myBox.va, ha=myBox.ha, rotation=myBox.angle
+            x=myBox.x,
+            y=myBox.y,
+            s=text_str,
+            fontdict=myBox.font_dict,
+            bbox=myBox.style,
+            va=myBox.va,
+            ha=myBox.ha,
+            rotation=myBox.angle,
         )
-        
+
         # get our box's dims and edge positions to store in myBox object
-        bbox = plt.gca().transData.inverted().transform_bbox(
-            txt.get_window_extent(renderer=self.fig.canvas.get_renderer())
-        ) # coords of text
-        wpad = txt.get_bbox_patch().get_extents().width # pad size for width
-        hpad = txt.get_bbox_patch().get_extents().height # pad size for height
+        bbox = (
+            plt.gca()
+            .transData.inverted()
+            .transform_bbox(
+                txt.get_window_extent(renderer=self.fig.canvas.get_renderer())  # type: ignore[attr-defined]
+            )
+        )  # coords of text
+        bbox_patch = txt.get_bbox_patch()
+        if bbox_patch is None:
+            raise ValueError("Text objet has no bounding box patch.")
+
+        wpad = bbox_patch.get_extents().width  # pad size for width
+        hpad = bbox_patch.get_extents().height  # pad size for height
         myBox.xLeft, myBox.xRight = bbox.x0 - wpad, bbox.x1 + wpad
         myBox.yBottom, myBox.yTop = bbox.y0 - hpad, bbox.y1 + wpad
         myBox.width = myBox.xRight - myBox.xLeft
         myBox.height = myBox.yTop - myBox.yBottom
-        myBox.x_center = myBox.xRight - myBox.width/2
-        myBox.y_center = myBox.yTop - myBox.height/2
-        
+        myBox.xCenter = myBox.xRight - myBox.width / 2
+        myBox.yCenter = myBox.yTop - myBox.height / 2
+
         # store box in our LogicTree object's box dictionary to grab dimensions when needed
         self.boxes[myBox.name] = myBox
-        
+
     def add_connection_biSplit(
-        self, 
-        boxA: LogicBox, 
-        boxB: LogicBox, 
-        boxC: LogicBox, 
-        arrow_head: bool = True, 
+        self,
+        boxA: LogicBox,
+        boxB: LogicBox,
+        boxC: LogicBox,
+        arrow_head: bool = True,
         arrow_width: float = 0.5,
-        fill_connection: bool = True, 
-        fc_A: Optional[str] = None, 
-        ec_A: Optional[str] = None, 
-        fc_B: Optional[str] = None, 
+        fill_connection: bool = True,
+        fc_A: Optional[str] = None,
+        ec_A: Optional[str] = None,
+        fc_B: Optional[str] = None,
         ec_B: Optional[str] = None,
-        fc_C: Optional[str] = None, 
-        ec_C: Optional[str] = None, 
-        lw: float = 0.5, 
-        butt_offset: float = 0, 
-        tip_offset: float = 0
+        fc_C: Optional[str] = None,
+        ec_C: Optional[str] = None,
+        lw: float = 0.5,
+        butt_offset: float = 0,
+        tip_offset: float = 0,
     ) -> None:
         """
         Create a bifurcating connection from boxA to both boxB and boxC.
@@ -371,52 +438,88 @@ class LogicTree:
         ------
         ValueError
             If boxA is not clearly above or below both boxB and boxC.
+        ValueError
+            If `xLeft`, `xCenter`, `xRight`, `yTop`, `yCenter`, or `yBottom` are None for `boxA`, `boxB`, or `boxC`.
         """
+        if (
+            boxA.xLeft is None
+            or boxA.xCenter is None
+            or boxA.xRight is None
+            or boxA.yTop is None
+            or boxA.yCenter is None
+            or boxA.yBottom is None
+        ):
+            raise ValueError(
+                "boxA LogicBox layout is not initialized before accessing coordinates."
+            )
+        if (
+            boxB.xLeft is None
+            or boxB.xCenter is None
+            or boxB.xRight is None
+            or boxB.yTop is None
+            or boxB.yCenter is None
+            or boxB.yBottom is None
+        ):
+            raise ValueError(
+                "boxB LogicBox layout is not initialized before accessing coordinates."
+            )
+        if (
+            boxC.xLeft is None
+            or boxC.xCenter is None
+            or boxC.xRight is None
+            or boxC.yTop is None
+            or boxC.yCenter is None
+            or boxC.yBottom is None
+        ):
+            raise ValueError(
+                "boxC LogicBox layout is not initialized before accessing coordinates."
+            )
+
         # do stylizing stuff
         if fill_connection:
             # option for face color to equal edgecolor
-            if fc_A == 'ec':
+            if fc_A == "ec":
                 fc_A = boxA.edge_color
             # if no option specified, face color of arrow is same as face color of box
             elif fc_A is None:
                 fc_A = boxA.face_color
             # option for face color to equal edgecolor
-            if fc_B == 'ec':
+            if fc_B == "ec":
                 fc_B = boxB.edge_color
             # if no option specified, face color of arrow is same as face color of box
             elif fc_B is None:
                 fc_B = boxB.face_color
             # option for face color to equal edgecolor
-            if fc_C == 'ec':
+            if fc_C == "ec":
                 fc_C = boxC.edge_color
             # if no option specified, face color of arrow is same as face color of box
             elif fc_C is None:
                 fc_C = boxC.face_color
-        
-        if ec_A =='fc':
+
+        if ec_A == "fc":
             ec_A = boxA.face_color
         elif ec_A is None:
             ec_A = boxA.edge_color
-        if ec_B =='fc':
+        if ec_B == "fc":
             ec_B = boxB.face_color
         elif ec_B is None:
             ec_B = boxB.edge_color
-        if ec_C =='fc':
+        if ec_C == "fc":
             ec_C = boxC.face_color
         elif ec_C is None:
             ec_C = boxC.edge_color
-        
+
         # first take the case of boxA being above boxes B and C
-        if (boxA.y_center > boxB.y_center) and (boxA.y_center > boxC.y_center):
+        if (boxA.yCenter > boxB.yCenter) and (boxA.yCenter > boxC.yCenter):
             # create the downward line from BoxA to center
-            Ax1 = boxA.x_center
+            Ax1 = boxA.xCenter
             Ay1 = boxA.yBottom - butt_offset
             Ax2 = Ax1
             # take it down to the midpoint of boxA and the highest of boxes B and C
             if boxB.yTop >= boxC.yTop:
-                Ay2 = (Ay1 + boxB.yTop)/2
+                Ay2 = (Ay1 + boxB.yTop) / 2
             else:
-                Ay2 = (Ay1 + boxC.yTop)/2
+                Ay2 = (Ay1 + boxC.yTop) / 2
             # set path for downward segment
             path = [(Ax1, Ay1), (Ax2, Ay2)]
             arrow = ArrowETC(path=path, arrow_head=False, arrow_width=arrow_width)
@@ -428,14 +531,17 @@ class LogicTree:
             # fill arrow if desired
             if fill_connection:
                 self.ax.fill(x, y, color=fc_A)
-                
-            # take the case that boxB is to the left of boxC 
-            if boxB.x_center < boxC.x_center:
+
+            # take the case that boxB is to the left of boxC
+            if boxB.xCenter < boxC.xCenter:
                 # get paths
-                path_left, path_right = self._get_pathsForBi_left_then_right(Ax2, Ay2, left_box=boxB, \
-                                                                             right_box=boxC, tip_offset=tip_offset)
+                path_left, path_right = self._get_pathsForBi_left_then_right(
+                    Ax2, Ay2, left_box=boxB, right_box=boxC, tip_offset=tip_offset
+                )
                 # make left arrow
-                arrow = ArrowETC(path=path_left, arrow_head=arrow_head, arrow_width=arrow_width)
+                arrow = ArrowETC(
+                    path=path_left, arrow_head=arrow_head, arrow_width=arrow_width
+                )
                 # get vertices
                 x = arrow.x_vertices[:-1]
                 y = arrow.y_vertices[:-1]
@@ -443,9 +549,11 @@ class LogicTree:
                 # fill arrow if desired
                 if fill_connection:
                     self.ax.fill(x, y, color=fc_B)
-                
+
                 # make right arrow
-                arrow = ArrowETC(path=path_right, arrow_head=arrow_head, arrow_width=arrow_width)
+                arrow = ArrowETC(
+                    path=path_right, arrow_head=arrow_head, arrow_width=arrow_width
+                )
                 # get vertices
                 x = arrow.x_vertices[:-1]
                 y = arrow.y_vertices[:-1]
@@ -453,13 +561,17 @@ class LogicTree:
                 # fill arrow if desired
                 if fill_connection:
                     self.ax.fill(x, y, color=fc_C)
-                    
-            # take the case that boxB is to the right of boxC 
-            elif boxB.x_center > boxC.x_center:
+
+            # take the case that boxB is to the right of boxC
+            elif boxB.xCenter > boxC.xCenter:
                 # get paths
-                path_left, path_right = self._get_pathsForBi_left_then_right(Ax2, Ay2, left_box=boxC, right_box=boxB, tip_offset=tip_offset)
+                path_left, path_right = self._get_pathsForBi_left_then_right(
+                    Ax2, Ay2, left_box=boxC, right_box=boxB, tip_offset=tip_offset
+                )
                 # make left arrow
-                arrow = ArrowETC(path=path_left, arrow_head=arrow_head, arrow_width=arrow_width)
+                arrow = ArrowETC(
+                    path=path_left, arrow_head=arrow_head, arrow_width=arrow_width
+                )
                 # get vertices
                 x = arrow.x_vertices[:-1]
                 y = arrow.y_vertices[:-1]
@@ -467,9 +579,11 @@ class LogicTree:
                 # fill arrow if desired
                 if fill_connection:
                     self.ax.fill(x, y, color=fc_C)
-                
+
                 # make right arrow
-                arrow = ArrowETC(path=path_right, arrow_head=arrow_head, arrow_width=arrow_width)
+                arrow = ArrowETC(
+                    path=path_right, arrow_head=arrow_head, arrow_width=arrow_width
+                )
                 # get vertices
                 x = arrow.x_vertices[:-1]
                 y = arrow.y_vertices[:-1]
@@ -477,18 +591,18 @@ class LogicTree:
                 # fill arrow if desired
                 if fill_connection:
                     self.ax.fill(x, y, color=fc_B)
-                
+
         # now take the case of boxA being below boxes B and C
-        elif (boxA.y_center < boxB.y_center) and (boxA.y_center < boxC.y_center):
+        elif (boxA.yCenter < boxB.yCenter) and (boxA.yCenter < boxC.yCenter):
             # create the upward line from BoxA to center
-            Ax1 = boxA.x_center
+            Ax1 = boxA.xCenter
             Ay1 = boxA.yTop + butt_offset
             Ax2 = Ax1
             # take it down to the midpoint of boxA and the highest of boxes B and C
             if boxB.yBottom <= boxC.yBottom:
-                Ay2 = (Ay1 + boxB.yBottom)/2
+                Ay2 = (Ay1 + boxB.yBottom) / 2
             else:
-                Ay2 = (Ay1 + boxC.yBottom)/2
+                Ay2 = (Ay1 + boxC.yBottom) / 2
             # set path for downward segment
             path = [(Ax1, Ay1), (Ax2, Ay2)]
             arrow = ArrowETC(path=path, arrow_head=arrow_head, arrow_width=arrow_width)
@@ -501,13 +615,16 @@ class LogicTree:
             if fill_connection:
                 self.ax.fill(x, y, color=fc_A)
 
-            # take the case that boxB is to the left of boxC 
-            if boxB.x_center < boxC.x_center:
+            # take the case that boxB is to the left of boxC
+            if boxB.xCenter < boxC.xCenter:
                 # get paths
-                path_left, path_right = self._get_pathsForBi_left_then_right(Ax2, Ay2, left_box=boxB, \
-                                                                             right_box=boxC, tip_offset=tip_offset)
+                path_left, path_right = self._get_pathsForBi_left_then_right(
+                    Ax2, Ay2, left_box=boxB, right_box=boxC, tip_offset=tip_offset
+                )
                 # make left arrow
-                arrow = ArrowETC(path=path_left, arrow_head=arrow_head, arrow_width=arrow_width)
+                arrow = ArrowETC(
+                    path=path_left, arrow_head=arrow_head, arrow_width=arrow_width
+                )
                 # get vertices
                 x = arrow.x_vertices[:-1]
                 y = arrow.y_vertices[:-1]
@@ -515,9 +632,11 @@ class LogicTree:
                 # fill arrow if desired
                 if fill_connection:
                     self.ax.fill(x, y, color=fc_B)
-                
+
                 # make right arrow
-                arrow = ArrowETC(path=path_right, arrow_head=arrow_head, arrow_width=arrow_width)
+                arrow = ArrowETC(
+                    path=path_right, arrow_head=arrow_head, arrow_width=arrow_width
+                )
                 # get vertices
                 x = arrow.x_vertices[:-1]
                 y = arrow.y_vertices[:-1]
@@ -525,13 +644,17 @@ class LogicTree:
                 # fill arrow if desired
                 if fill_connection:
                     self.ax.fill(x, y, color=fc_C)
-                    
-            # take the case that boxB is to the right of boxC 
-            elif boxB.x_center > boxC.x_center:
+
+            # take the case that boxB is to the right of boxC
+            elif boxB.xCenter > boxC.xCenter:
                 # get paths
-                path_left, path_right = self._get_pathsForBi_left_then_right(Ax2, Ay2, left_box=boxC, right_box=boxB, tip_offset=tip_offset)
+                path_left, path_right = self._get_pathsForBi_left_then_right(
+                    Ax2, Ay2, left_box=boxC, right_box=boxB, tip_offset=tip_offset
+                )
                 # make left arrow
-                arrow = ArrowETC(path=path_left, arrow_head=arrow_head, arrow_width=arrow_width)
+                arrow = ArrowETC(
+                    path=path_left, arrow_head=arrow_head, arrow_width=arrow_width
+                )
                 # get vertices
                 x = arrow.x_vertices[:-1]
                 y = arrow.y_vertices[:-1]
@@ -539,9 +662,11 @@ class LogicTree:
                 # fill arrow if desired
                 if fill_connection:
                     self.ax.fill(x, y, color=fc_C)
-                
+
                 # make right arrow
-                arrow = ArrowETC(path=path_right, arrow_head=arrow_head, arrow_width=arrow_width)
+                arrow = ArrowETC(
+                    path=path_right, arrow_head=arrow_head, arrow_width=arrow_width
+                )
                 # get vertices
                 x = arrow.x_vertices[:-1]
                 y = arrow.y_vertices[:-1]
@@ -549,19 +674,19 @@ class LogicTree:
                 # fill arrow if desired
                 if fill_connection:
                     self.ax.fill(x, y, color=fc_B)
-            
+
     def add_connection(
-        self, 
-        boxA: LogicBox, 
-        boxB: LogicBox, 
-        arrow_head: bool = True, 
-        arrow_width: float = 0.5, 
-        fill_connection: bool= True,
-        butt_offset: float = 0, 
-        tip_offset: float = 0, 
-        fc: Optional[str] = None, 
-        ec: Optional[str] = None, 
-        lw: float = 0.7
+        self,
+        boxA: LogicBox,
+        boxB: LogicBox,
+        arrow_head: bool = True,
+        arrow_width: float = 0.5,
+        fill_connection: bool = True,
+        butt_offset: float = 0,
+        tip_offset: float = 0,
+        fc: Optional[str] = None,
+        ec: Optional[str] = None,
+        lw: float = 0.7,
     ) -> None:
         """
         Create a straight or segmented connection (arrow) from boxA to boxB.
@@ -591,64 +716,91 @@ class LogicTree:
         ------
         ValueError
             If boxes are not aligned in the same row or column and cannot be connected directly.
+        ValueError
+            If `xLeft`, `xCenter`, `xRight`, `yTop`, `yCenter`, or `yBottom` are None for either `boxA` or `boxB`.
         """
+        if (
+            boxA.xLeft is None
+            or boxA.xCenter is None
+            or boxA.xRight is None
+            or boxA.yTop is None
+            or boxA.yCenter is None
+            or boxA.yBottom is None
+        ):
+            raise ValueError(
+                "boxA LogicBox layout is not initialized before accessing coordinates."
+            )
+        if (
+            boxB.xLeft is None
+            or boxB.xCenter is None
+            or boxB.xRight is None
+            or boxB.yTop is None
+            or boxB.yCenter is None
+            or boxB.yBottom is None
+        ):
+            raise ValueError(
+                "boxB LogicBox layout is not initialized before accessing coordinates."
+            )
+
         # handle colors
         if fill_connection:
             # if no fc is chosen, take the fc of connection to be fc of boxB
-            if fc is None or fc == 'fc':
+            if fc is None or fc == "fc":
                 fc = boxB.face_color
-            elif fc == 'ec':
+            elif fc == "ec":
                 fc = boxB.edge_color
         # if no ec is chosen, take ec of connection to be ec of boxB
-        if ec is None or ec == 'ec':
+        if ec is None or ec == "ec":
             ec = boxB.edge_color
-        elif ec == 'fc':
+        elif ec == "fc":
             ec = boxB.face_color
-            
+
         # first case, boxA and boxB are on the same row
-        if boxA.y_center == boxB.y_center:
+        if boxA.yCenter == boxB.yCenter:
             # boxA is to the left of boxB
-            if boxA.x_center < boxB.x_center:
-                Ax, Ay = boxA.xRight + butt_offset, boxA.y_center
-                Bx, By = boxB.xLeft - tip_offset, boxB.y_center
+            if boxA.xCenter < boxB.xCenter:
+                Ax, Ay = boxA.xRight + butt_offset, boxA.yCenter
+                Bx, By = boxB.xLeft - tip_offset, boxB.yCenter
             # boxA is to the right of boxB
-            elif boxA.x_center > boxB.x_center:
-                Ax, Ay = boxA.xLeft - butt_offset, boxA.y_center
-                Bx, By = boxB.xRight + tip_offset, boxB.y_center
+            elif boxA.xCenter > boxB.xCenter:
+                Ax, Ay = boxA.xLeft - butt_offset, boxA.yCenter
+                Bx, By = boxB.xRight + tip_offset, boxB.yCenter
             path = [(Ax, Ay), (Bx, By)]
         # second case, boxA is below boxB
-        elif boxA.y_center < boxB.y_center:
+        elif boxA.yCenter < boxB.yCenter:
             # same column
-            if boxA.x_center == boxB.x_center:
-                Ax, Ay = boxA.x_center, boxA.yTop + butt_offset
-                Bx, By = boxB.x_center, boxB.yBottom - tip_offset
+            if boxA.xCenter == boxB.xCenter:
+                Ax, Ay = boxA.xCenter, boxA.yTop + butt_offset
+                Bx, By = boxB.xCenter, boxB.yBottom - tip_offset
                 path = [(Ax, Ay), (Bx, By)]
             # boxes are offset in the x-axis
             else:
-                Ax, Ay =  boxA.x_center, boxA.yTop + butt_offset
-                Bx = boxB.x_center
-                By = (boxB.yBottom + boxA.yTop)/2
+                Ax, Ay = boxA.xCenter, boxA.yTop + butt_offset
+                Bx = boxB.xCenter
+                By = (boxB.yBottom + boxA.yTop) / 2
                 Cx, Cy = Bx, boxB.yBottom - tip_offset
                 path = [(Ax, Ay), (Bx, By), (Cx, Cy)]
         # third case, boxA is above boxB
-        elif boxA.y_center > boxB.y_center:
+        elif boxA.yCenter > boxB.yCenter:
             # same column
-            if boxA.x_center == boxB.x_center:
-                Ax, Ay = boxA.x_center, boxA.yBottom - butt_offset
-                Bx, By = boxB.x_center, boxB.yTop + tip_offset
+            if boxA.xCenter == boxB.xCenter:
+                Ax, Ay = boxA.xCenter, boxA.yBottom - butt_offset
+                Bx, By = boxB.xCenter, boxB.yTop + tip_offset
                 path = [(Ax, Ay), (Bx, By)]
             # boxes are offset in the x-axis
             else:
-                Ax, Ay =  boxA.x_center, boxA.yBottom - butt_offset
-                Bx = boxA.x_center
-                By = (boxB.yTop + boxA.yBottom)/2
-                Cx, Cy = boxB.x_center, By
+                Ax, Ay = boxA.xCenter, boxA.yBottom - butt_offset
+                Bx = boxA.xCenter
+                By = (boxB.yTop + boxA.yBottom) / 2
+                Cx, Cy = boxB.xCenter, By
                 Dx, Dy = Cx, boxB.yTop + tip_offset
                 path = [(Ax, Ay), (Bx, By), (Cx, Cy), (Dx, Dy)]
         else:
-            raise ValueError("Boxes must be aligned horizontally or vertically to create a connection.")
-                
-        # create arrow object and 
+            raise ValueError(
+                "Boxes must be aligned horizontally or vertically to create a connection."
+            )
+
+        # create arrow object and
         arrow = ArrowETC(path=path, arrow_head=arrow_head, arrow_width=arrow_width)
         x = arrow.x_vertices
         y = arrow.y_vertices
@@ -656,12 +808,12 @@ class LogicTree:
         # fill arrow if desired
         if fill_connection:
             self.ax.fill(x, y, color=fc)
-            
+
     def make_title(
-        self, 
-        pos: Literal['left', 'center', 'right'] = 'left', 
-        consider_box_x: bool = True, 
-        new_title: Optional[str] = None
+        self,
+        pos: Literal["left", "center", "right"] = "left",
+        consider_box_x: bool = True,
+        new_title: Optional[str] = None,
     ) -> None:
         """
         Place a title on the LogicTree figure.
@@ -678,50 +830,72 @@ class LogicTree:
         Raises
         ------
         ValueError
-            If `pos` is not one of the accepted options.
+            If `pos` is not one of ['left', 'center', 'right'].
+        ValueError
+            If `self.title` is None when attempting to create the title.
+        ValueError
+            If any LogicBox in the layout is missing `xLeft` or `xRight` coordinates (if `consider_box_x=True`).
+
         """
         if new_title is not None:
             self.title = new_title
-        
+
         # if we are to ignore consider_box_x, use xlims to find the horizontal placement of title
         if not consider_box_x:
-            if pos == 'left':
-                ha = 'left'
+            if pos == "left":
+                ha = "left"
                 x = self.xlims[0]
-            elif pos == 'center':
-                ha = 'center'
-                x = (self.xlims[1] + self.xlims[0])/2
-            elif pos == 'right':
-                ha = 'right'
+            elif pos == "center":
+                ha = "center"
+                x = (self.xlims[1] + self.xlims[0]) / 2
+            elif pos == "right":
+                ha = "right"
                 x = self.xlims[1]
             else:
                 raise ValueError("pos must be one of ['left', 'center', 'right']")
-        
+
         # if we are to consider_box_x
         else:
-            xFarLeft = float('inf')
-            xFarRight = float('-inf')
+            xFarLeft = float("inf")
+            xFarRight = float("-inf")
             for box in self.boxes:
-                if self.boxes[box].xLeft < xFarLeft:
-                    xFarLeft = self.boxes[box].xLeft
-                if self.boxes[box].xRight > xFarRight:
-                    xFarRight = self.boxes[box].xRight
-            if pos == 'left':
-                ha = 'left'
+                x_left = self.boxes[box].xLeft
+                x_right = self.boxes[box].xRight
+
+                assert x_left is not None and x_right is not None
+
+                if x_left < xFarLeft:
+                    xFarLeft = x_left
+                if x_right > xFarRight:
+                    xFarRight = x_right
+            if pos == "left":
+                ha = "left"
                 x = xFarLeft
-            elif pos == 'right':
-                ha = 'right'
+            elif pos == "right":
+                ha = "right"
                 x = xFarRight
-            elif pos == 'center':
-                ha = 'center'
-                x = (xFarRight + xFarLeft)/2
+            elif pos == "center":
+                ha = "center"
+                x = (xFarRight + xFarLeft) / 2
             else:
                 raise ValueError("pos must be one of ['left', 'center', 'right']")
-        
+
         # finally make the title
-        self.ax.text(x=x, y=self.ylims[1], s=self.title, va='top', ha=ha, fontdict=self.title_font)
-                
-    def save_as_png(self, file_name: str, dpi: int = 800, content_padding: float = 0.0) -> None:
+        if self.title is None:
+            raise ValueError("LogicTree.title is None. Please provide a title.")
+
+        self.ax.text(
+            x=x,
+            y=self.ylims[1],
+            s=self.title,
+            va="top",
+            ha=ha,
+            fontdict=self.title_font,
+        )
+
+    def save_as_png(
+        self, file_name: str, dpi: int = 800, content_padding: float = 0.0
+    ) -> None:
         """
         Save the LogicTree diagram as a PNG file.
 
@@ -735,8 +909,11 @@ class LogicTree:
             The padding in inches to place around the content. This can be helpful
             to prevent your boxes from touching the edge of the figures.
         """
-        self.ax.set_aspect('equal')
+        self.ax.set_aspect("equal")
         # self.fig.subplots_adjust(right=28)
-        self.fig.savefig(file_name, dpi=dpi, bbox_inches='tight', pad_inches=content_padding)
+        self.fig.savefig(
+            file_name, dpi=dpi, bbox_inches="tight", pad_inches=content_padding
+        )
+
 
 __all__ = ["LogicTree"]
