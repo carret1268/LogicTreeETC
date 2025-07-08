@@ -39,7 +39,7 @@ from typing import Any, Dict, List, Literal, Optional, Tuple
 from matplotlib.patches import BoxStyle
 import matplotlib.pyplot as plt
 
-from .ArrowETC import ArrowETC
+from arrowetc import ArrowETC
 from .LogicBoxETC import LogicBox
 
 class LogicTree:
