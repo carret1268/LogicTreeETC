@@ -42,7 +42,8 @@ jobs:
           texlive-fonts-recommended \
           texlive-latex-extra \
           texlive-humanities \
-          dvipng
+          dvipng \
+          cm-super
 
     - name: Run linter (Ruff)
       run: ruff check .
