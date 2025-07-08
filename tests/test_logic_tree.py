@@ -8,12 +8,20 @@ from logictree.LogicBoxETC import LogicBox
 
 matplotlib.use("Agg")
 
+
 def create_logic_box(tree, name, x, y, **kwargs):
     tree.add_box(
-        xpos=x, ypos=y, text=name, box_name=name,
-        bbox_fc="black", bbox_ec="white", ha="center", **kwargs
+        xpos=x,
+        ypos=y,
+        text=name,
+        box_name=name,
+        bbox_fc="black",
+        bbox_ec="white",
+        ha="center",
+        **kwargs,
     )
     return tree.boxes[name]
+
 
 def test_logic_tree_init():
     tree = LogicTree()
@@ -24,11 +32,15 @@ def test_logic_tree_init():
     assert tree.font_dict["fontsize"] == 15
 
     tree = LogicTree(
-        fig_size=(5, 5), xlims=(0, 10), ylims=(-10, 10),
-        fig_fc="white", title="Test Tree",
+        fig_size=(5, 5),
+        xlims=(0, 10),
+        ylims=(-10, 10),
+        fig_fc="white",
+        title="Test Tree",
         font_dict={"fontname": "Calibri", "fontsize": 20, "color": "black"},
         font_dict_title={"fontname": "Comic Sans", "fontsize": 24, "color": "magenta"},
-        text_color=None, title_color=None,
+        text_color=None,
+        title_color=None,
     )
     assert tree.title == "Test Tree"
     assert tree.title_font["fontname"] == "Comic Sans"
@@ -36,10 +48,12 @@ def test_logic_tree_init():
     tree = LogicTree(
         font_dict={"fontname": "Calibri", "fontsize": 20, "color": "black"},
         font_dict_title={"fontname": "Comic Sans", "fontsize": 24, "color": "magenta"},
-        text_color="green", title_color="cyan",
+        text_color="green",
+        title_color="cyan",
     )
     assert tree.title_font["color"] == "cyan"
     assert tree.font_dict["color"] == "green"
+
 
 def test_get_pathsForBi_left_then_right():
     tree = LogicTree()
@@ -47,14 +61,29 @@ def test_get_pathsForBi_left_then_right():
     tree.add_box(0, 10, "", "boxB", "black", "white")
 
     with pytest.raises(ValueError):
-        tree._get_pathsForBi_left_then_right(5, 10, tree.boxes["boxA"], LogicBox(0, 10, "fail", "fail", "white", "black", {}), 0)
+        tree._get_pathsForBi_left_then_right(
+            5,
+            10,
+            tree.boxes["boxA"],
+            LogicBox(0, 10, "fail", "fail", "white", "black", {}),
+            0,
+        )
     with pytest.raises(ValueError):
-        tree._get_pathsForBi_left_then_right(5, 10, LogicBox(0, 10, "fail", "fail", "white", "black", {}), tree.boxes["boxB"], 0)
+        tree._get_pathsForBi_left_then_right(
+            5,
+            10,
+            LogicBox(0, 10, "fail", "fail", "white", "black", {}),
+            tree.boxes["boxB"],
+            0,
+        )
 
     expected = ([(5, 10), (0, 10), (0, 2.2)], [(5, 10), (0, 10), (0, 12.2)])
-    actual = tree._get_pathsForBi_left_then_right(5, 10, tree.boxes["boxA"], tree.boxes["boxB"], 0)
+    actual = tree._get_pathsForBi_left_then_right(
+        5, 10, tree.boxes["boxA"], tree.boxes["boxB"], 0
+    )
     assert all(allclose(a, b) for a, b in zip(actual[0], expected[0]))
     assert all(allclose(a, b) for a, b in zip(actual[1], expected[1]))
+
 
 def test_add_box():
     tree = LogicTree()
@@ -67,11 +96,22 @@ def test_add_box():
     boxB = tree.boxes["boxB"]
     assert allclose([boxB.xLeft], [-2.2])
 
-    tree.add_box(0, 2, "boxCText", "boxC", "black", "white", use_tex_rendering=True, ul=True, ul_depth_width=(2, 3))
+    tree.add_box(
+        0,
+        2,
+        "boxCText",
+        "boxC",
+        "black",
+        "white",
+        use_tex_rendering=True,
+        ul=True,
+        ul_depth_width=(2, 3),
+    )
     assert tree.boxes["boxC"].name == "boxC"
 
     with pytest.raises(ValueError):
         tree.add_box(10, 20, "boxDText", "boxC", "green", "cyan")
+
 
 def test_add_connection_biSplit():
     tree = LogicTree()
@@ -93,7 +133,9 @@ def test_add_connection_biSplit():
         tree.boxes["boxB"],
         tree.boxes["boxC"],
         fill_connection=True,
-        fc_A="ec", ec_B="fc", ec_C="fc"
+        fc_A="ec",
+        ec_B="fc",
+        ec_C="fc",
     )
 
     # Upward connection
@@ -103,7 +145,9 @@ def test_add_connection_biSplit():
         tree.boxes["boxUpB"],
         arrow_head=False,
         fill_connection=False,
-        fc_A="black", ec_B="white", ec_C="white"
+        fc_A="black",
+        ec_B="white",
+        ec_C="white",
     )
 
     # Confirm drawing calls were made
@@ -116,11 +160,24 @@ def test_add_connection_biSplit():
 
     # raise errors for uninitialized boxes
     with pytest.raises(ValueError):
-        tree.add_connection_biSplit(LogicBox(0, 10, "fail", "fail", "white", "black", {}), tree.boxes["boxB"], tree.boxes["boxC"])
+        tree.add_connection_biSplit(
+            LogicBox(0, 10, "fail", "fail", "white", "black", {}),
+            tree.boxes["boxB"],
+            tree.boxes["boxC"],
+        )
     with pytest.raises(ValueError):
-        tree.add_connection_biSplit(tree.boxes["boxA"], LogicBox(0, 10, "fail", "fail", "white", "black", {}), tree.boxes["boxC"])
+        tree.add_connection_biSplit(
+            tree.boxes["boxA"],
+            LogicBox(0, 10, "fail", "fail", "white", "black", {}),
+            tree.boxes["boxC"],
+        )
     with pytest.raises(ValueError):
-        tree.add_connection_biSplit(tree.boxes["boxA"], tree.boxes["boxB"], LogicBox(0, 10, "fail", "fail", "white", "black", {}))
+        tree.add_connection_biSplit(
+            tree.boxes["boxA"],
+            tree.boxes["boxB"],
+            LogicBox(0, 10, "fail", "fail", "white", "black", {}),
+        )
+
 
 def test_add_connection():
     tree = LogicTree()
@@ -130,7 +187,15 @@ def test_add_connection():
     tree.add_box(5, 10, "boxD", "boxD", "black", "white")
 
     tree.ax = MagicMock()
-    tree.add_connection(tree.boxes["boxA"], tree.boxes["boxB"], arrow_head=True, fill_connection=True, fc="ec", ec="fc", lw=1.0)
+    tree.add_connection(
+        tree.boxes["boxA"],
+        tree.boxes["boxB"],
+        arrow_head=True,
+        fill_connection=True,
+        fc="ec",
+        ec="fc",
+        lw=1.0,
+    )
     assert tree.ax.plot.called
     assert tree.ax.fill.called
 
@@ -155,6 +220,7 @@ def test_add_connection():
     with pytest.raises(ValueError, match="Boxes must be aligned"):
         tree.add_connection(aligned_box, aligned_box)
 
+
 def test_save_as_png(tmp_path):
     tree = LogicTree(title="Arrow Test")
     a = create_logic_box(tree, "A", 10, 20)
@@ -164,6 +230,7 @@ def test_save_as_png(tmp_path):
     tree.save_as_png(str(output))
 
     assert output.exists()
+
 
 def test_make_title(tmp_path):
     tree = LogicTree(title="BiSplit Test")

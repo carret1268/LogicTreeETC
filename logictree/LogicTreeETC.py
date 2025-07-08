@@ -358,7 +358,7 @@ class LogicTree:
                 text_str = (
                     r"\setul{"
                     + f"{ul_depth_width[0]}pt"
-                    + r"}{" 
+                    + r"}{"
                     + f"{ul_depth_width[1]}pt"
                     + r"}"
                     + text_str
@@ -771,7 +771,9 @@ class LogicTree:
                 Ax, Ay = boxA.xLeft - butt_offset, boxA.yCenter
                 Bx, By = boxB.xRight + tip_offset, boxB.yCenter
             else:
-                raise ValueError("Boxes must be aligned horizontally or vertically to create a connection.")
+                raise ValueError(
+                    "Boxes must be aligned horizontally or vertically to create a connection."
+                )
             path = [(Ax, Ay), (Bx, By)]
         # second case, boxA is below boxB
         elif boxA.yCenter < boxB.yCenter:

@@ -1,4 +1,3 @@
-from pathlib import Path
 import sys
 import os
 
@@ -9,7 +8,8 @@ project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
-from logictree import LogicBox # noqa: E402
+from logictree import LogicBox  # noqa: E402
+
 
 def test_logic_box_initialization_defaults():
     font_dict = {"fontsize": 12, "color": "white"}
@@ -43,6 +43,7 @@ def test_logic_box_initialization_defaults():
     assert box.xCenter is None
     assert box.yCenter is None
 
+
 def test_logic_box_initialization_with_style():
     font_dict = {"fontsize": 14}
     style = BoxStyle("Round", pad=0.2)
@@ -65,6 +66,7 @@ def test_logic_box_initialization_with_style():
     assert box.lw == 2.5
     assert box.angle == 15
     assert box.style["boxstyle"].__class__.__name__ == "Round"
+
 
 def test_logic_box_invalid_alignment_raises():
     with pytest.raises(ValueError, match="Invalid va: middle"):
@@ -90,6 +92,7 @@ def test_logic_box_invalid_alignment_raises():
             font_dict={},
             ha="mid",
         )
+
 
 def test_logic_box_repr():
     box = LogicBox(
