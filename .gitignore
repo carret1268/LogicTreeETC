@@ -3,5 +3,8 @@ dist/
 build/
 *.egg-info/
 docs/_build/
-.mypy_cache
-.ruff_cache
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+tests/__pycache__

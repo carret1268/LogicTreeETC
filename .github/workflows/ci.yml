@@ -33,6 +33,18 @@ jobs:
         pip install pytest coverage ruff mypy bandit
         pip install -r docs/requirements.txt
 
+    - name: Install minimal LaTeX packages
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          texlive-latex-base \
+          texlive-latex-recommended \
+          texlive-fonts-recommended \
+          texlive-latex-extra \
+          texlive-humanities \
+          dvipng \
+          cm-super
+
     - name: Run linter (Ruff)
       run: ruff check .
 
@@ -45,15 +57,15 @@ jobs:
     - name: Run security check (Bandit)
       run: bandit -r logictree
 
-    # - name: Run tests with coverage
-    #   run: |
-    #     coverage run --branch -m pytest
-    #     coverage xml  # generates coverage.xml for codecov upload
+    - name: Run tests with coverage
+      run: |
+        coverage run --branch -m pytest
+        coverage xml  # generates coverage.xml for codecov upload
 
-    # - name: Upload coverage to Codecov
-    #   uses: codecov/codecov-action@v5
-    #   with:
-    #     token: ${{ secrets.CODECOV_TOKEN }}
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v5
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
 
     - name: Check version consistency
       run: bash scripts/check_version_and_build_docs.sh
