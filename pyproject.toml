@@ -5,13 +5,13 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "LogicTreeETC"
 version = "0.1.0"
-description = "A package for logic trees with ETC features"
+description = "A package for easily creating publication ready logic trees"
 authors = [
     { name="E. Tyler Carr", email="carret1268@gmail.com" }
 ]
 readme = "README.md"
 license = { file = "LICENSE" }
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 dependencies = [
     "matplotlib",
     "numpy",
@@ -19,8 +19,6 @@ dependencies = [
 ]
 classifiers = [
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "License :: CC0 1.0 Universal (CC0 1.0) Public Domain Dedication",
     "Operating System :: OS Independent",
@@ -37,3 +35,15 @@ where = ["."]
 
 [tool.setuptools.package-data]
 "logictree" = ["fonts/*.ttf"]
+
+[tool.ruff]
+lint.ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.10"  # or your minimum supported version
+ignore_missing_imports = true
+strict_optional = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+warn_unused_ignores = true
+show_error_codes = true

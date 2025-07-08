@@ -2,9 +2,11 @@
 in logic tree diagrams. Each LogicBox supports custom text, styling, and
 positioning options using matplotlib's BoxStyle.
 """
+
 from typing import Any, Dict, Literal, Optional
 
 from matplotlib.patches import BoxStyle
+
 
 class LogicBox:
     """
@@ -75,23 +77,24 @@ class LogicBox:
         Coordinates of the box edges, set during layout.
     width, height : float or None
         Dimensions of the box, set during layout.
-    x_center, y_center : float or None
+    xCenter, yCenter : float or None
         Coordinates of the box center, set during layout.
     """
+
     def __init__(
-        self, 
-        xpos: float, 
-        ypos: float, 
-        text: str, 
-        box_name: str, 
-        bbox_fc: str, 
-        bbox_ec: str, 
-        font_dict: Dict[str, Any], 
-        bbox_style: Optional[BoxStyle] = BoxStyle('Square', pad=0.5), 
-        lw: float = 1.6, 
-        va: Literal['top', 'center', 'bottom'] = 'center', 
-        ha: Literal['left', 'center', 'right'] = 'left',
-        angle: float = 0.0
+        self,
+        xpos: float,
+        ypos: float,
+        text: str,
+        box_name: str,
+        bbox_fc: str,
+        bbox_ec: str,
+        font_dict: Dict[str, Any],
+        bbox_style: BoxStyle = BoxStyle("Square", pad=0.5),
+        lw: float = 1.6,
+        va: Literal["top", "center", "bottom"] = "center",
+        ha: Literal["left", "center", "right"] = "left",
+        angle: float = 0.0,
     ) -> None:
         # data validation for literals (va and ha parameters)
         if va not in ("top", "center", "bottom"):
@@ -103,7 +106,7 @@ class LogicBox:
         my_style = self._my_bbox_style(
             facecolor=bbox_fc, edgecolor=bbox_ec, linewidth=lw, boxstyle=bbox_style
         )
-        
+
         self.x = xpos
         self.y = ypos
         self.text = text
@@ -116,21 +119,17 @@ class LogicBox:
         self.ha = ha
         self.lw = lw
         self.angle = angle
-        self.xLeft = None
-        self.xRight = None
-        self.yBottom = None
-        self.yTop = None
-        self.width = None
-        self.height = None
-        self.x_center = None
-        self.y_center = None
-        
+        self.xLeft: Optional[float] = None
+        self.xRight: Optional[float] = None
+        self.yBottom: Optional[float] = None
+        self.yTop: Optional[float] = None
+        self.width: Optional[float] = None
+        self.height: Optional[float] = None
+        self.xCenter: Optional[float] = None
+        self.yCenter: Optional[float] = None
+
     def _my_bbox_style(
-        self,
-        facecolor: str,
-        edgecolor: str,
-        linewidth: float,
-        boxstyle: BoxStyle
+        self, facecolor: str, edgecolor: str, linewidth: float, boxstyle: BoxStyle
     ) -> Dict[str, Any]:
         """
         Create a dictionary of styling parameters for the box's visual appearance.
@@ -152,14 +151,14 @@ class LogicBox:
             Dictionary containing styling properties for use with matplotlib text boxes.
         """
         my_style = {
-            'boxstyle': boxstyle,
-            'facecolor': facecolor,
-            'edgecolor': edgecolor,
-            'linewidth': linewidth
+            "boxstyle": boxstyle,
+            "facecolor": facecolor,
+            "edgecolor": edgecolor,
+            "linewidth": linewidth,
         }
 
         return my_style
-    
+
     def __repr__(self) -> str:
         """
         Return a developer-friendly string representation of the LogicBox.
@@ -173,5 +172,6 @@ class LogicBox:
             f"<LogicBox(name={self.name!r}, text={self.text!r}, "
             f"x={self.x}, y={self.y})>"
         )
-    
+
+
 __all__ = ["LogicBox"]
