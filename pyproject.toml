@@ -14,7 +14,8 @@ license = { file = "LICENSE" }
 requires-python = ">=3.8"
 dependencies = [
     "matplotlib",
-    "numpy"
+    "numpy",
+    "arrowetc",
 ]
 classifiers = [
     "Programming Language :: Python :: 3",
