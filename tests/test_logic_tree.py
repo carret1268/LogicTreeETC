@@ -168,7 +168,7 @@ def test_add_connection_biSplit():
 
     for args, kwargs in tree.ax.fill.call_args_list:
         assert "color" in kwargs
-        assert kwargs["color"] in {"black", "white"}
+        assert kwargs["color"] in {"black", "white", None}
 
     # raise errors for uninitialized boxes
     with pytest.raises(ValueError):

@@ -33,7 +33,7 @@ Notes
 - If LaTeX rendering is enabled, packages such as bm, amsmath, soul, and relsize must be installed.
 """
 
-from typing import Any, Dict, List, Literal, Optional, Tuple
+from typing import Any, Dict, List, Literal, Optional, Tuple, Union
 
 from math import atan2, degrees
 from matplotlib.patches import BoxStyle
@@ -81,6 +81,8 @@ class LogicTree:
         The main matplotlib axes for drawing.
     boxes : dict
         Dictionary storing LogicBox objects keyed by their `box_name`.
+    arrows : list[ArrowETC]
+        List storing all ArrowETC objects.
     title : str
         The figure's title.
     xlims, ylims : tuple of float
@@ -106,6 +108,7 @@ class LogicTree:
         title_color: Optional[str] = None,
     ) -> None:
         self.boxes: Dict[str, LogicBox] = {}
+        self.arrows: List[ArrowETC] = []
         self.title = title
         self.xlims = xlims
         self.ylims = ylims
@@ -409,6 +412,106 @@ class LogicTree:
 
         return myBox
 
+    def add_arrow(self, arrow: ArrowETC) -> None:
+        """
+        Add a pre-constructed ArrowETC object to the LogicTree canvas.
+
+        This method allows advanced users to configure complex arrows externally
+        and then attach them to the logic tree. The arrow is stored for later access
+        and drawn using the existing matplotlib axes.
+
+        Parameters
+        ----------
+        arrow : ArrowETC
+            A ready-to-render ArrowETC object.
+
+        Raises
+        ------
+        ValueError
+            If the ArrowETC object is missing a valid path.
+        """
+        if not arrow.path or len(arrow.path) < 2:
+            raise ValueError("ArrowETC must have a path with at least two points.")
+
+        self.arrows.append(arrow)
+        self.ax = arrow.draw_to_ax(self.ax)
+
+    def add_arrow_between(
+        self,
+        start: tuple[float, float],
+        end: tuple[float, float],
+        arrow_width: float = 0.5,
+        arrow_head: bool = True,
+        bezier: bool = False,
+        tip_offset: float = 0.0,
+        butt_offset: float = 0.0,
+        facecolor: str = "black",
+        edgecolor: str = "black",
+        alpha: float = 1.0,
+        zorder: float = 1.0,
+        linewidth: float = 1.0,
+        linestyle: str = "-",
+    ) -> None:
+        """
+        Add a quick arrow between two points using default ArrowETC settings.
+
+        This wrapper creates a new ArrowETC object from two coordinates and adds it
+        to the logic tree. Useful for free-floating annotations or diagram embellishment.
+
+        Parameters
+        ----------
+        start : tuple of float
+            (x, y) coordinates for the base of the arrow.
+        end : tuple of float
+            (x, y) coordinates for the tip of the arrow.
+        arrow_width : float, optional
+            Width of the arrow shaft. Default is 0.5.
+        arrow_head : bool, optional
+            Whether to draw an arrowhead. Default is True.
+        bezier : bool, optional
+            Whether to render the arrow as a Bezier curve. Default is False.
+        tip_offset : float, optional
+            Distance to offset the arrow tip (e.g., to avoid overlap). Default is 0.0.
+        butt_offset : float, optional
+            Distance to offset the arrow base. Default is 0.0.
+        facecolor : str, optional
+            Fill color of the arrow. Default is "black".
+        edgecolor : str, optional
+            Outline color of the arrow. Default is "black".
+        alpha : float, optional
+            Opacity of the arrow. Default is 1.0.
+        zorder : float, optional
+            Drawing layer priority. Default is 1.0.
+        linewidth : float, optional
+            Outline thickness. Default is 1.0.
+        linestyle : str, optional
+            Line style (e.g., "-", "--"). Default is "-".
+
+        Raises
+        ------
+        ValueError
+            If start and end points are the same.
+        """
+        if start == end:
+            raise ValueError("Arrow start and end points must differ.")
+
+        path = [start, end]
+        arrow = ArrowETC(
+            path=path,
+            arrow_width=arrow_width,
+            arrow_head=arrow_head,
+            bezier=bezier,
+            tip_offset=tip_offset,
+            butt_offset=butt_offset,
+            facecolor=facecolor,
+            edgecolor=edgecolor,
+            alpha=alpha,
+            zorder=zorder,
+            linewidth=linewidth,
+            linestyle=linestyle,
+        )
+        self.add_arrow(arrow)
+
     def add_connection_biSplit(
         self,
         boxA: LogicBox,
@@ -619,6 +722,7 @@ class LogicTree:
             ec = (
                 box.face_color if ec == "fc" else (box.edge_color if ec is None else ec)
             )
+
             return fc, ec
 
         fc_A, ec_A = resolve_colors(boxA, fc_A, ec_A)
@@ -637,12 +741,15 @@ class LogicTree:
 
         Ax2 = Ax1
         path_vertical = [(Ax1, Ay1), (Ax2, Ay2)]
-        arrow = ArrowETC(path=path_vertical, arrow_head=False, arrow_width=arrow_width)
-        x = arrow.x_vertices[:-1]
-        y = arrow.y_vertices[:-1]
-        self.ax.plot(x, y, color=ec_A, lw=0.01)
-        if fill_connection:
-            self.ax.fill(x, y, color=fc_A)
+        arrow = ArrowETC(
+            path=path_vertical,
+            arrow_head=False,
+            arrow_width=arrow_width,
+            ec=ec_A,
+            fc=fc_A,
+            lw=lw,
+        )
+        self.add_arrow(arrow)
 
         # Determine left/right order
         left_box, right_box = (
@@ -656,6 +763,7 @@ class LogicTree:
             path: list[tuple[float, float]],
             ec: str,
             fc: Optional[str],
+            lw: float,
             label: Optional[str],
             label_offset: Literal["above", "below"],
         ) -> None:
@@ -675,21 +783,26 @@ class LogicTree:
             label_offset : {'above', 'below'}
                 Vertical position of the text relative to the arrow shaft.
             """
-            arrow = ArrowETC(path=path, arrow_head=arrow_head, arrow_width=arrow_width)
-            x = arrow.x_vertices[:-1]
-            y = arrow.y_vertices[:-1]
-            self.ax.plot(x, y, color=ec, lw=lw)
-            if fill_connection:
-                self.ax.fill(x, y, color=fc)
+            arrow = ArrowETC(
+                path=path,
+                arrow_head=arrow_head,
+                arrow_width=arrow_width,
+                ec=ec,
+                fc=fc,
+                lw=lw,
+                close_butt=False,
+                zorder=1000,
+            )
+            self.add_arrow(arrow)
             annotate_segment(label, path, label_offset)
 
         # Draw left
         if left_box is boxB:
-            draw_branch(path_left, ec_B, fc_B, textLeft, textLeftOffset)
-            draw_branch(path_right, ec_C, fc_C, textRight, textRightOffset)
+            draw_branch(path_left, ec_B, fc_B, lw, textLeft, textLeftOffset)
+            draw_branch(path_right, ec_C, fc_C, lw, textRight, textRightOffset)
         else:
-            draw_branch(path_left, ec_C, fc_C, textLeft, textLeftOffset)
-            draw_branch(path_right, ec_B, fc_B, textRight, textRightOffset)
+            draw_branch(path_left, ec_C, fc_C, lw, textLeft, textLeftOffset)
+            draw_branch(path_right, ec_B, fc_B, lw, textRight, textRightOffset)
 
     def _get_side_coords(
         self, box: LogicBox, side: str, offset: float = 0.0
@@ -743,7 +856,7 @@ class LogicTree:
     def add_connection(
         self,
         boxA: LogicBox,
-        boxB: LogicBox,
+        boxB: Union[LogicBox, Tuple[float, float]],
         segmented: bool = False,
         arrow_head: bool = True,
         arrow_width: float = 0.5,
@@ -791,8 +904,9 @@ class LogicTree:
         ----------
         boxA : LogicBox
             The source LogicBox from which the arrow originates.
-        boxB : LogicBox
-            The target LogicBox to which the arrow points.
+        boxB : LogicBox | Tuple[float, float]
+            The target LogicBox, or the exact coordinates (x, y) to which the arrow points. If you want
+            padding between the point (or LogicBox edge), update the `tip_offset` parameter.
         segmented : bool, optional
             If True, non-aligned boxes will be connected with segmented (elbow) arrows.
             If False, a direct connection is used. Default is False.
@@ -839,33 +953,40 @@ class LogicTree:
             raise ValueError(
                 "boxA LogicBox layout is not initialized before accessing coordinates."
             )
-        if (
-            boxB.xLeft is None
-            or boxB.xCenter is None
-            or boxB.xRight is None
-            or boxB.yTop is None
-            or boxB.yCenter is None
-            or boxB.yBottom is None
-        ):
-            raise ValueError(
-                "boxB LogicBox layout is not initialized before accessing coordinates."
-            )
 
-        if fill_connection:
-            if fc is None or fc == "fc":
-                fc = boxB.face_color
-            elif fc == "ec":
-                fc = boxB.edge_color
-        if ec is None or ec == "ec":
-            ec = boxB.edge_color
-        elif ec == "fc":
-            ec = boxB.face_color
+        if isinstance(boxB, LogicBox):
+            if (
+                boxB.xLeft is None
+                or boxB.xCenter is None
+                or boxB.xRight is None
+                or boxB.yTop is None
+                or boxB.yCenter is None
+                or boxB.yBottom is None
+            ):
+                raise ValueError(
+                    "boxB LogicBox layout is not initialized before accessing coordinates."
+                )
+            if fill_connection:
+                if fc is None or fc == "fc":
+                    fc = boxB.face_color
+                elif fc == "ec":
+                    fc = boxB.edge_color
+            if ec is None or ec == "ec":
+                ec = boxB.edge_color
+            elif ec == "fc":
+                ec = boxB.face_color
 
-        if boxA.xCenter == boxB.xCenter and boxA.yCenter == boxB.yCenter:
-            raise ValueError("Boxes cannot have the same position.")
+            if boxA.xCenter == boxB.xCenter and boxA.yCenter == boxB.yCenter:
+                raise ValueError("Boxes cannot have the same position.")
 
-        dx = boxB.xCenter - boxA.xCenter
-        dy = boxB.yCenter - boxA.yCenter
+            dx = boxB.xCenter - boxA.xCenter
+            dy = boxB.yCenter - boxA.yCenter
+        else:
+            # boxB is a coordinate point
+            xB, yB = boxB
+            dx = xB - boxA.xCenter
+            dy = yB - boxA.yCenter
+
         theta = degrees(atan2(dy, dx))
 
         def auto_side(theta: float, for_A: bool) -> str:
@@ -881,11 +1002,13 @@ class LogicTree:
         resolved_sideA = sideA or auto_side(theta, for_A=True)
         resolved_sideB = sideB or auto_side(theta, for_A=False)
 
-        # Get anchor positions
         start = self._get_side_coords(boxA, resolved_sideA)
-        end = self._get_side_coords(boxB, resolved_sideB)
 
-        # Apply offset at start
+        if isinstance(boxB, LogicBox):
+            end = self._get_side_coords(boxB, resolved_sideB)
+        else:
+            end = boxB  # (x, y) tuple
+
         if butt_offset:
             match resolved_sideA:
                 case "left":
@@ -905,7 +1028,6 @@ class LogicTree:
                 case "bottomRight":
                     start = (start[0] + butt_offset, start[1] - butt_offset)
 
-        # Apply offset at end
         if tip_offset:
             match resolved_sideB:
                 case "left":
@@ -925,19 +1047,28 @@ class LogicTree:
                 case "bottomRight":
                     end = (end[0] + tip_offset, end[1] - tip_offset)
 
-        if segmented:
+        if segmented and isinstance(boxB, LogicBox):
+            # need another type check to appease mypy
+            if (
+                boxB.xLeft is None
+                or boxB.xCenter is None
+                or boxB.xRight is None
+                or boxB.yTop is None
+                or boxB.yCenter is None
+                or boxB.yBottom is None
+            ):
+                raise ValueError(
+                    "boxB LogicBox layout is not initialized before accessing coordinates."
+                )
             if boxA.yCenter == boxB.yCenter:
-                # same row
                 path = [start, end]
             elif boxA.yCenter < boxB.yCenter:
-                # A below B
                 if boxA.xCenter == boxB.xCenter:
                     path = [start, end]
                 else:
                     midY = (boxA.yTop + boxB.yBottom) / 2
                     path = [start, (start[0], midY), (end[0], midY), end]
             else:
-                # A above B
                 if boxA.xCenter == boxB.xCenter:
                     path = [start, end]
                 else:
@@ -946,16 +1077,20 @@ class LogicTree:
         else:
             path = [start, end]
 
-        arrow = ArrowETC(path=path, arrow_head=arrow_head, arrow_width=arrow_width)
-        x, y = arrow.x_vertices, arrow.y_vertices
-        self.ax.plot(x, y, color=ec, lw=lw)
-        if fill_connection:
-            self.ax.fill(x, y, color=fc)
+        arrow = ArrowETC(
+            path=path,
+            arrow_head=arrow_head,
+            arrow_width=arrow_width,
+            ec=ec,
+            fc=fc,
+            lw=lw,
+        )
+        self.add_arrow(arrow)
 
     def add_bezier_connection(
         self,
         boxA: LogicBox,
-        boxB: LogicBox,
+        boxB: Union[LogicBox, Tuple[float, float]],
         style: Literal["smooth", "elbow", "s-curve"] = "smooth",
         control_points: Optional[list[tuple[float, float]]] = None,
         arrow_head: bool = True,
@@ -995,61 +1130,62 @@ class LogicTree:
         n_bezier: int = 600,
     ) -> None:
         """
-        Add a curved Bezier arrow between two LogicBox objects.
+        Draw a curved Bezier arrow connection between two LogicBoxes or from a LogicBox to a fixed point.
 
-        This method creates a smoothly curved connection between two boxes using the ArrowETC class
-        with Bezier interpolation. You may choose from preset path styles, provide your own control points,
-        or override entry and exit sides for fine-grained layout control. Optional offsets help prevent
-        visual collisions at the arrow's tail and tip.
+        The arrow path may be automatically shaped using preset styles or manually customized with control points.
+        You can specify exact exit and entry sides (edges or corners) of the boxes, and apply optional offsets to
+        avoid overlap with box borders.
 
         Parameters
         ----------
         boxA : LogicBox
-            The source LogicBox from which the arrow begins.
-        boxB : LogicBox
-            The target LogicBox to which the arrow points.
+            The source LogicBox from which the arrow originates.
+        boxB : LogicBox | Tuple[float, float]
+            The target LogicBox, or the exact coordinates (x, y) to which the arrow points. If you want
+            padding between the point (or LogicBox edge), update the `tip_offset` parameter.
         style : {'smooth', 'elbow', 's-curve'}, optional
-            A preset style used to generate control points for the curve when `control_points` is not provided.
-            - 'smooth': a gently arced curve bulging perpendicular to the line between boxes
-            - 'elbow': a stepped right-angle bend using two control points
-            - 's-curve': an S-shaped double bend for visual separation
+            If `control_points` is not provided, determines the default Bezier shape:
+            - 'smooth': a gently arced curve perpendicular to the connection line
+            - 'elbow': a right-angle step shape
+            - 's-curve': a symmetric double bend for greater visual separation
         control_points : list of (float, float), optional
-            Optional list of user-defined control points for full manual Bezier specification.
-            If provided, overrides the `style` argument.
+            Explicit control points for the Bezier curve. Overrides `style` if provided.
         arrow_head : bool, optional
-            If True, an arrowhead will be added at the end of the curve. Default is True.
+            Whether to draw an arrowhead pointing at `boxB`. Default is True.
         arrow_width : float, optional
-            Width of the arrow shaft in data coordinates. Default is 0.5.
+            Width of the arrow shaft in data units. Default is 0.5.
         fill_connection : bool, optional
-            Whether to fill the arrow polygon with color. Default is True.
-        fc : str, optional
-            Fill color for the arrow body. If None, uses boxB's face color. If 'ec', uses boxB's edge color.
-        ec : str, optional
-            Edge color for the arrow outline. If None, uses boxB's edge color. If 'fc', uses boxB's face color.
-        lw : float, optional
-            Line width for the arrow outline. Default is 0.7.
-        sideA : {'left', 'topLeft', 'right', 'topRight', 'top', 'bottomRight', 'bottom', 'bottomLeft' 'center'}, optional
-            Optional side of `boxA` to exit from. If not specified, automatically inferred from box geometry.
-        sideB : {'left', 'topLeft', 'right', 'topRight', 'top', 'bottomRight', 'bottom', 'bottomLeft' 'center'}, optional
-            Optional side of `boxB` to enter. If not specified, automatically inferred.
+            Whether to fill the arrow body with color. Default is True.
         butt_offset : float, optional
-            Offset distance from `boxA` to begin the curve, pushing the start point outward from its edge.
+            Distance to offset the starting point of the arrow (away from `boxA`) in the
+            direction of the connection. Default is 0.
         tip_offset : float, optional
-            Offset distance from `boxB` to end the curve, pulling the arrow tip away from the box.
+            Distance to offset the tip of the arrow (away from `boxB`) to avoid overlap.
+            Default is 0.
+        fc : str, optional
+            Fill color of the arrow body. If None, uses `boxB`'s face color. If 'ec', uses `boxB`'s edge color.
+        ec : str, optional
+            Edge color (outline) of the arrow. If None, uses `boxB`'s edge color. If 'fc', uses face color.
+        lw : float, optional
+            Line width of the arrow outline. Default is 0.7.
+        sideA : {'left', 'topLeft', 'right', 'topRight', 'top', 'bottomRight', 'bottom', 'bottomLeft', 'center'}, optional
+            The side or corner of `boxA` where the arrow starts. If not provided, inferred automatically.
+        sideB : {'left', 'topLeft', 'right', 'topRight', 'top', 'bottomRight', 'bottom', 'bottomLeft', 'center'}, optional
+            The side or corner of `boxB` where the arrow ends. Ignored if `boxB` is a coordinate.
         n_bezier : int, optional
-            The number of sample points used for drawing the bezier curves. If your arrow head is distorted,
-            try increasing this value. Default 600.
-
+            Number of interpolation points used to render the Bezier curve. Increase if your arrowhead looks distorted.
+            Default is 600.
 
         Raises
         ------
         ValueError
-            If boxA and boxB share the same center coordinates.
+            If boxA and boxB have the same center position.
         ValueError
-            If any bounding box attributes are uninitialized.
+            If required box coordinates are not initialized.
         ValueError
-            If `style` is not recognized when `control_points` is not provided.
+            If style is unknown and control_points is not provided.
         """
+
         if (
             boxA.xLeft is None
             or boxA.xCenter is None
@@ -1061,33 +1197,41 @@ class LogicTree:
             raise ValueError(
                 "boxA LogicBox layout is not initialized before accessing coordinates."
             )
-        if (
-            boxB.xLeft is None
-            or boxB.xCenter is None
-            or boxB.xRight is None
-            or boxB.yTop is None
-            or boxB.yCenter is None
-            or boxB.yBottom is None
-        ):
-            raise ValueError(
-                "boxB LogicBox layout is not initialized before accessing coordinates."
-            )
 
-        if fill_connection:
-            if fc is None or fc == "fc":
-                fc = boxB.face_color
-            elif fc == "ec":
-                fc = boxB.edge_color
-        if ec is None or ec == "ec":
-            ec = boxB.edge_color
-        elif ec == "fc":
-            ec = boxB.face_color
+        if isinstance(boxB, LogicBox):
+            if (
+                boxB.xLeft is None
+                or boxB.xCenter is None
+                or boxB.xRight is None
+                or boxB.yTop is None
+                or boxB.yCenter is None
+                or boxB.yBottom is None
+            ):
+                raise ValueError(
+                    "boxB LogicBox layout is not initialized before accessing coordinates."
+                )
 
-        if boxA.xCenter == boxB.xCenter and boxA.yCenter == boxB.yCenter:
-            raise ValueError("Boxes cannot have the same position.")
+            if fill_connection:
+                if fc is None or fc == "fc":
+                    fc = boxB.face_color
+                elif fc == "ec":
+                    fc = boxB.edge_color
+            if ec is None or ec == "ec":
+                ec = boxB.edge_color
+            elif ec == "fc":
+                ec = boxB.face_color
 
-        dx = boxB.xCenter - boxA.xCenter
-        dy = boxB.yCenter - boxA.yCenter
+            if boxA.xCenter == boxB.xCenter and boxA.yCenter == boxB.yCenter:
+                raise ValueError("Boxes cannot have the same position.")
+
+            dx = boxB.xCenter - boxA.xCenter
+            dy = boxB.yCenter - boxA.yCenter
+        else:
+            # boxB is a coordinate
+            xB, yB = boxB
+            dx = xB - boxA.xCenter
+            dy = yB - boxA.yCenter
+
         theta = degrees(atan2(dy, dx))
 
         def auto_side(theta: float, for_A: bool) -> str:
@@ -1103,8 +1247,12 @@ class LogicTree:
         resolved_sideA = sideA or auto_side(theta, for_A=True)
         resolved_sideB = sideB or auto_side(theta, for_A=False)
 
-        start = self._get_side_coords(boxA, resolved_sideA, tip_offset)
-        end = self._get_side_coords(boxB, resolved_sideB, butt_offset)
+        start = self._get_side_coords(boxA, resolved_sideA)
+
+        if isinstance(boxB, LogicBox):
+            end = self._get_side_coords(boxB, resolved_sideB)
+        else:
+            end = boxB  # raw coordinate
 
         # Apply butt offset
         if butt_offset:
@@ -1117,6 +1265,14 @@ class LogicTree:
                     start = (start[0], start[1] + butt_offset)
                 case "bottom":
                     start = (start[0], start[1] - butt_offset)
+                case "topLeft":
+                    start = (start[0] - butt_offset, start[1] + butt_offset)
+                case "topRight":
+                    start = (start[0] + butt_offset, start[1] + butt_offset)
+                case "bottomLeft":
+                    start = (start[0] - butt_offset, start[1] - butt_offset)
+                case "bottomRight":
+                    start = (start[0] + butt_offset, start[1] - butt_offset)
 
         # Apply tip offset
         if tip_offset:
@@ -1129,6 +1285,14 @@ class LogicTree:
                     end = (end[0], end[1] + tip_offset)
                 case "bottom":
                     end = (end[0], end[1] - tip_offset)
+                case "topLeft":
+                    end = (end[0] - tip_offset, end[1] + tip_offset)
+                case "topRight":
+                    end = (end[0] + tip_offset, end[1] + tip_offset)
+                case "bottomLeft":
+                    end = (end[0] - tip_offset, end[1] - tip_offset)
+                case "bottomRight":
+                    end = (end[0] + tip_offset, end[1] - tip_offset)
 
         if control_points is not None:
             path = [start] + control_points + [end]
@@ -1169,11 +1333,11 @@ class LogicTree:
             arrow_width=arrow_width,
             bezier=True,
             bezier_n=n_bezier,
+            fc=fc,
+            ec=ec,
+            lw=lw,
         )
-        x, y = arrow.x_vertices, arrow.y_vertices
-        self.ax.plot(x, y, color=ec, lw=lw)
-        if fill_connection:
-            self.ax.fill(x, y, color=fc)
+        self.add_arrow(arrow)
 
     def make_title(
         self,
