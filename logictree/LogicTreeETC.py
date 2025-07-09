@@ -35,6 +35,7 @@ Notes
 
 from typing import Any, Dict, List, Literal, Optional, Tuple
 
+from math import atan2, degrees
 from matplotlib.patches import BoxStyle
 import matplotlib.pyplot as plt
 
@@ -246,7 +247,7 @@ class LogicTree:
         ul: bool = False,
         ul_depth_width: Optional[Tuple[float, float]] = None,
         angle: float = 0.0,
-    ) -> None:
+    ) -> LogicBox:
         """
         Add a LogicBox to the LogicTree with specified text and styling.
 
@@ -284,6 +285,11 @@ class LogicTree:
             Underline depth and width for LaTeX.
         angle : float, optional
             Angle in degrees to rotate your box. Rotations are about the center of the box.
+
+        Returns
+        -------
+        LogicBox
+            The new LogicBox object.
 
         Raises
         ------
@@ -377,29 +383,31 @@ class LogicTree:
             rotation=myBox.angle,
         )
 
-        # get our box's dims and edge positions to store in myBox object
-        bbox = (
-            plt.gca()
-            .transData.inverted()
-            .transform_bbox(
-                txt.get_window_extent(renderer=self.fig.canvas.get_renderer())  # type: ignore[attr-defined]
-            )
-        )  # coords of text
+        # Ensure the figure is rendered so bbox extents are valid
+        self.fig.canvas.draw()
+
+        # Get the full bounding box of the text box (includes padding and styling)
         bbox_patch = txt.get_bbox_patch()
         if bbox_patch is None:
-            raise ValueError("Text objet has no bounding box patch.")
+            raise ValueError("Text object has no bounding box patch.")
 
-        wpad = bbox_patch.get_extents().width  # pad size for width
-        hpad = bbox_patch.get_extents().height  # pad size for height
-        myBox.xLeft, myBox.xRight = bbox.x0 - wpad, bbox.x1 + wpad
-        myBox.yBottom, myBox.yTop = bbox.y0 - hpad, bbox.y1 + wpad
+        # Convert the patch bbox from display to data coordinates
+        bbox_data = self.ax.transData.inverted().transform_bbox(
+            bbox_patch.get_window_extent(renderer=self.fig.canvas.get_renderer())  # type: ignore
+        )
+
+        # Set box dimensions and positions
+        myBox.xLeft, myBox.xRight = bbox_data.x0, bbox_data.x1
+        myBox.yBottom, myBox.yTop = bbox_data.y0, bbox_data.y1
         myBox.width = myBox.xRight - myBox.xLeft
         myBox.height = myBox.yTop - myBox.yBottom
-        myBox.xCenter = myBox.xRight - myBox.width / 2
-        myBox.yCenter = myBox.yTop - myBox.height / 2
+        myBox.xCenter = (myBox.xLeft + myBox.xRight) / 2
+        myBox.yCenter = (myBox.yBottom + myBox.yTop) / 2
 
         # store box in our LogicTree object's box dictionary to grab dimensions when needed
         self.boxes[myBox.name] = myBox
+
+        return myBox
 
     def add_connection_biSplit(
         self,
@@ -418,34 +426,91 @@ class LogicTree:
         lw: float = 0.5,
         butt_offset: float = 0,
         tip_offset: float = 0,
+        textLeft: Optional[str] = None,
+        textRight: Optional[str] = None,
+        textLeftOffset: Literal["above", "below"] = "above",
+        textRightOffset: Literal["above", "below"] = "above",
+        text_kwargs: Optional[dict] = None,
     ) -> None:
         """
-        Create a bifurcating connection from boxA to both boxB and boxC.
+        Create a bifurcating arrow connection from a parent LogicBox (`boxA`) to two child boxes (`boxB` and `boxC`),
+        using a stem that splits into two branching segments. Labels can optionally be placed along the left and right
+        arrow branches with customizable position and styling.
+
+        This method automatically infers the orientation of the bifurcation (downward or upward) based on the vertical
+        positions of the input boxes. It also determines the left/right ordering based on horizontal positions. Arrow
+        styling (head, width, fill, color) and label appearance are all configurable.
 
         Parameters
         ----------
-        boxA, boxB, boxC : LogicBox
-            Parent and child boxes for the connection. boxA must be above or below both boxB and boxC.
+        boxA : LogicBox
+            The parent box from which the bifurcation begins. Must be clearly vertically above or below both child boxes.
+        boxB : LogicBox
+            One of the two child boxes. The method will automatically determine whether this is the left or right branch
+            based on xCenter.
+        boxC : LogicBox
+            The other child box. Must be on the same vertical side of `boxA` as `boxB`.
         arrow_head : bool, optional
-            If True, draws arrowheads at boxB and boxC.
+            If True (default), draws arrowheads at the ends of the left and right branches.
         arrow_width : float, optional
-            Width of the arrows in data coordinates.
+            Width of the arrows in data units. Default is 0.5.
         fill_connection : bool, optional
-            Whether to fill the arrows with color.
-        fc_A, ec_A, fc_B, ec_B, fc_C, ec_C : str, optional
-            Fill and edge colors for the three parts of the connection.
+            Whether to fill the arrows with face color (True by default). If False, only outlines are drawn.
+        fc_A : str, optional
+            Face color of the vertical stem arrow from boxA. If None, defaults to `boxA.face_color`.
+            If "ec", uses `boxA.edge_color`.
+        ec_A : str, optional
+            Edge color of the vertical stem arrow from boxA. If None, defaults to `boxA.edge_color`.
+            If "fc", uses `boxA.face_color`.
+        fc_B : str, optional
+            Face color of the arrow branch toward boxB. If None, defaults to `boxB.face_color`.
+            If "ec", uses `boxB.edge_color`.
+        ec_B : str, optional
+            Edge color of the arrow branch toward boxB. If None, defaults to `boxB.edge_color`.
+            If "fc", uses `boxB.face_color`.
+        fc_C : str, optional
+            Face color of the arrow branch toward boxC. If None, defaults to `boxC.face_color`.
+            If "ec", uses `boxC.edge_color`.
+        ec_C : str, optional
+            Edge color of the arrow branch toward boxC. If None, defaults to `boxC.edge_color`.
+            If "fc", uses `boxC.face_color`.
         lw : float, optional
-            Line width of the arrows.
-        butt_offset, tip_offset : float, optional
-            Offsets for avoiding overlap at the base or tips of the arrows.
+            Line width of the arrow edges. Default is 0.5.
+        butt_offset : float, optional
+            Distance to offset the base of the vertical stem away from the parent boxA. Prevents visual overlap.
+            Default is 0.
+        tip_offset : float, optional
+            Distance to offset the tips of the arrows from boxB and boxC. Prevents overlap with box edges.
+            Default is 0.
+        textLeft : str, optional
+            Optional text label to display above or below the arrow leading to the left box. Centered along the shaft.
+        textRight : str, optional
+            Optional text label to display above or below the arrow leading to the right box. Centered along the shaft.
+        textLeftOffset : {'above', 'below'}, optional
+            Whether to place the `textLeft` label above or below the arrow shaft. Default is 'above'.
+        textRightOffset : {'above', 'below'}, optional
+            Whether to place the `textRight` label above or below the arrow shaft. Default is 'above'.
+        text_kwargs : dict, optional
+            Dictionary of matplotlib-compatible text styling options. Keys may include:
+                - 'fontsize' (int): font size (default: 12)
+                - 'fontname' (str): font family (default: 'sans-serif')
+                - 'color' (str): font color (default: 'white')
 
         Raises
         ------
         ValueError
-            If boxA is not clearly above or below both boxB and boxC.
+            If any required coordinates (`xLeft`, `xCenter`, `xRight`, `yTop`, `yCenter`, `yBottom`) of any input box
+            are uninitialized (i.e., None).
+
         ValueError
-            If `xLeft`, `xCenter`, `xRight`, `yTop`, `yCenter`, or `yBottom` are None for `boxA`, `boxB`, or `boxC`.
+            If `boxA` is not clearly vertically above or below both `boxB` and `boxC`.
+
+        Notes
+        -----
+        This function is intended for use with properly initialized `LogicBox` instances, such as those added via
+        LogicTree's `add_box()` method. It is useful for visualizing binary decision splits in flow diagrams or logic trees.
         """
+
         if (
             boxA.xLeft is None
             or boxA.xCenter is None
@@ -480,210 +545,206 @@ class LogicTree:
                 "boxC LogicBox layout is not initialized before accessing coordinates."
             )
 
-        # do stylizing stuff
+        # Resolve text styling
+        if text_kwargs is None:
+            text_kwargs = {}
+        fontname = text_kwargs.get("fontname", "sans-serif")
+        fontsize = text_kwargs.get("fontsize", 12)
+        fontcolor = text_kwargs.get("color", "white")
+
+        def annotate_segment(
+            text: Optional[str],
+            path: list[tuple[float, float]],
+            offset: Literal["above", "below"],
+        ) -> None:
+            """
+            Place text at the midpoint of a given arrow segment, offset vertically above or below.
+
+            Parameters
+            ----------
+            text : str, optional
+                The text to render. If None or empty, nothing is drawn.
+            path : list of (float, float)
+                The path representing the arrow segment.
+            offset : {'above', 'below'}
+                Whether the label is placed above or below the arrow shaft.
+            """
+            if not text:
+                return
+            (x1, y1), (x2, _) = path[0], path[-1]
+            xm = (x1 + x2) / 2 + (arrow_width / 2 if x1 < x2 else -arrow_width / 2)
+            ym = (
+                y1 + arrow_width * 0.95
+                if offset == "above"
+                else y1 - arrow_width * 0.95
+            )
+            va = "bottom" if offset == "above" else "top"
+            self.ax.text(
+                xm,
+                ym,
+                text,
+                ha="center",
+                va=va,
+                fontsize=fontsize,
+                fontname=fontname,
+                color=fontcolor,
+            )
+
+        def resolve_colors(
+            box: LogicBox, fc: Optional[str], ec: Optional[str]
+        ) -> tuple[Optional[str], str]:
+            """
+            Resolve fill and edge color settings using box defaults and shorthand keywords.
+
+            Parameters
+            ----------
+            box : LogicBox
+                The box used to provide default or fallback colors.
+            fc : str, optional
+                The face color. Can be None, "ec", or a valid color string.
+            ec : str, optional
+                The edge color. Can be None, "fc", or a valid color string.
+
+            Returns
+            -------
+            tuple of (str, str)
+                The resolved face color and edge color.
+            """
+            if fill_connection:
+                fc = (
+                    box.edge_color
+                    if fc == "ec"
+                    else (box.face_color if fc is None else fc)
+                )
+            ec = (
+                box.face_color if ec == "fc" else (box.edge_color if ec is None else ec)
+            )
+            return fc, ec
+
+        fc_A, ec_A = resolve_colors(boxA, fc_A, ec_A)
+        fc_B, ec_B = resolve_colors(boxB, fc_B, ec_B)
+        fc_C, ec_C = resolve_colors(boxC, fc_C, ec_C)
+
+        # Determine vertical direction of arrows
+        if boxA.yCenter > boxB.yCenter and boxA.yCenter > boxC.yCenter:
+            Ax1, Ay1 = boxA.xCenter, boxA.yBottom - butt_offset
+            Ay2 = (Ay1 + max(boxB.yTop, boxC.yTop)) / 2
+        elif boxA.yCenter < boxB.yCenter and boxA.yCenter < boxC.yCenter:
+            Ax1, Ay1 = boxA.xCenter, boxA.yTop + butt_offset
+            Ay2 = (Ay1 + min(boxB.yBottom, boxC.yBottom)) / 2
+        else:
+            raise ValueError("boxA must be clearly above or below both boxB and boxC.")
+
+        Ax2 = Ax1
+        path_vertical = [(Ax1, Ay1), (Ax2, Ay2)]
+        arrow = ArrowETC(path=path_vertical, arrow_head=False, arrow_width=arrow_width)
+        x = arrow.x_vertices[:-1]
+        y = arrow.y_vertices[:-1]
+        self.ax.plot(x, y, color=ec_A, lw=0.01)
         if fill_connection:
-            # option for face color to equal edgecolor
-            if fc_A == "ec":
-                fc_A = boxA.edge_color
-            # if no option specified, face color of arrow is same as face color of box
-            elif fc_A is None:
-                fc_A = boxA.face_color
-            # option for face color to equal edgecolor
-            if fc_B == "ec":
-                fc_B = boxB.edge_color
-            # if no option specified, face color of arrow is same as face color of box
-            elif fc_B is None:
-                fc_B = boxB.face_color
-            # option for face color to equal edgecolor
-            if fc_C == "ec":
-                fc_C = boxC.edge_color
-            # if no option specified, face color of arrow is same as face color of box
-            elif fc_C is None:
-                fc_C = boxC.face_color
+            self.ax.fill(x, y, color=fc_A)
 
-        if ec_A == "fc":
-            ec_A = boxA.face_color
-        elif ec_A is None:
-            ec_A = boxA.edge_color
-        if ec_B == "fc":
-            ec_B = boxB.face_color
-        elif ec_B is None:
-            ec_B = boxB.edge_color
-        if ec_C == "fc":
-            ec_C = boxC.face_color
-        elif ec_C is None:
-            ec_C = boxC.edge_color
+        # Determine left/right order
+        left_box, right_box = (
+            (boxB, boxC) if boxB.xCenter < boxC.xCenter else (boxC, boxB)
+        )
+        path_left, path_right = self._get_pathsForBi_left_then_right(
+            Ax2, Ay2, left_box=left_box, right_box=right_box, tip_offset=tip_offset
+        )
 
-        # first take the case of boxA being above boxes B and C
-        if (boxA.yCenter > boxB.yCenter) and (boxA.yCenter > boxC.yCenter):
-            # create the downward line from BoxA to center
-            Ax1 = boxA.xCenter
-            Ay1 = boxA.yBottom - butt_offset
-            Ax2 = Ax1
-            # take it down to the midpoint of boxA and the highest of boxes B and C
-            if boxB.yTop >= boxC.yTop:
-                Ay2 = (Ay1 + boxB.yTop) / 2
-            else:
-                Ay2 = (Ay1 + boxC.yTop) / 2
-            # set path for downward segment
-            path = [(Ax1, Ay1), (Ax2, Ay2)]
-            arrow = ArrowETC(path=path, arrow_head=False, arrow_width=arrow_width)
+        def draw_branch(
+            path: list[tuple[float, float]],
+            ec: str,
+            fc: Optional[str],
+            label: Optional[str],
+            label_offset: Literal["above", "below"],
+        ) -> None:
+            """
+            Draw a single arrow branch with optional fill and text annotation.
 
-            # get vertices
-            x = arrow.x_vertices[:-1]
-            y = arrow.y_vertices[:-1]
-            self.ax.plot(x, y, color=ec_A, lw=0.01)
-            # fill arrow if desired
-            if fill_connection:
-                self.ax.fill(x, y, color=fc_A)
-
-            # take the case that boxB is to the left of boxC
-            if boxB.xCenter < boxC.xCenter:
-                # get paths
-                path_left, path_right = self._get_pathsForBi_left_then_right(
-                    Ax2, Ay2, left_box=boxB, right_box=boxC, tip_offset=tip_offset
-                )
-                # make left arrow
-                arrow = ArrowETC(
-                    path=path_left, arrow_head=arrow_head, arrow_width=arrow_width
-                )
-                # get vertices
-                x = arrow.x_vertices[:-1]
-                y = arrow.y_vertices[:-1]
-                self.ax.plot(x, y, color=ec_B, lw=lw)
-                # fill arrow if desired
-                if fill_connection:
-                    self.ax.fill(x, y, color=fc_B)
-
-                # make right arrow
-                arrow = ArrowETC(
-                    path=path_right, arrow_head=arrow_head, arrow_width=arrow_width
-                )
-                # get vertices
-                x = arrow.x_vertices[:-1]
-                y = arrow.y_vertices[:-1]
-                self.ax.plot(x, y, color=ec_C, lw=lw)
-                # fill arrow if desired
-                if fill_connection:
-                    self.ax.fill(x, y, color=fc_C)
-
-            # take the case that boxB is to the right of boxC
-            elif boxB.xCenter > boxC.xCenter:
-                # get paths
-                path_left, path_right = self._get_pathsForBi_left_then_right(
-                    Ax2, Ay2, left_box=boxC, right_box=boxB, tip_offset=tip_offset
-                )
-                # make left arrow
-                arrow = ArrowETC(
-                    path=path_left, arrow_head=arrow_head, arrow_width=arrow_width
-                )
-                # get vertices
-                x = arrow.x_vertices[:-1]
-                y = arrow.y_vertices[:-1]
-                self.ax.plot(x, y, color=ec_C, lw=lw)
-                # fill arrow if desired
-                if fill_connection:
-                    self.ax.fill(x, y, color=fc_C)
-
-                # make right arrow
-                arrow = ArrowETC(
-                    path=path_right, arrow_head=arrow_head, arrow_width=arrow_width
-                )
-                # get vertices
-                x = arrow.x_vertices[:-1]
-                y = arrow.y_vertices[:-1]
-                self.ax.plot(x, y, color=ec_B, lw=lw)
-                # fill arrow if desired
-                if fill_connection:
-                    self.ax.fill(x, y, color=fc_B)
-
-        # now take the case of boxA being below boxes B and C
-        elif (boxA.yCenter < boxB.yCenter) and (boxA.yCenter < boxC.yCenter):
-            # create the upward line from BoxA to center
-            Ax1 = boxA.xCenter
-            Ay1 = boxA.yTop + butt_offset
-            Ax2 = Ax1
-            # take it down to the midpoint of boxA and the highest of boxes B and C
-            if boxB.yBottom <= boxC.yBottom:
-                Ay2 = (Ay1 + boxB.yBottom) / 2
-            else:
-                Ay2 = (Ay1 + boxC.yBottom) / 2
-            # set path for downward segment
-            path = [(Ax1, Ay1), (Ax2, Ay2)]
+            Parameters
+            ----------
+            path : list of (float, float)
+                The arrow path from the split point to the destination box.
+            ec : str
+                Edge color of the arrow.
+            fc : str
+                Fill color of the arrow.
+            label : str, optional
+                Optional text to annotate the arrow shaft.
+            label_offset : {'above', 'below'}
+                Vertical position of the text relative to the arrow shaft.
+            """
             arrow = ArrowETC(path=path, arrow_head=arrow_head, arrow_width=arrow_width)
-
-            # get vertices
             x = arrow.x_vertices[:-1]
             y = arrow.y_vertices[:-1]
-            self.ax.plot(x, y, color=ec_A, lw=0.01)
-            # fill arrow if desired
+            self.ax.plot(x, y, color=ec, lw=lw)
             if fill_connection:
-                self.ax.fill(x, y, color=fc_A)
+                self.ax.fill(x, y, color=fc)
+            annotate_segment(label, path, label_offset)
 
-            # take the case that boxB is to the left of boxC
-            if boxB.xCenter < boxC.xCenter:
-                # get paths
-                path_left, path_right = self._get_pathsForBi_left_then_right(
-                    Ax2, Ay2, left_box=boxB, right_box=boxC, tip_offset=tip_offset
-                )
-                # make left arrow
-                arrow = ArrowETC(
-                    path=path_left, arrow_head=arrow_head, arrow_width=arrow_width
-                )
-                # get vertices
-                x = arrow.x_vertices[:-1]
-                y = arrow.y_vertices[:-1]
-                self.ax.plot(x, y, color=ec_B, lw=lw)
-                # fill arrow if desired
-                if fill_connection:
-                    self.ax.fill(x, y, color=fc_B)
+        # Draw left
+        if left_box is boxB:
+            draw_branch(path_left, ec_B, fc_B, textLeft, textLeftOffset)
+            draw_branch(path_right, ec_C, fc_C, textRight, textRightOffset)
+        else:
+            draw_branch(path_left, ec_C, fc_C, textLeft, textLeftOffset)
+            draw_branch(path_right, ec_B, fc_B, textRight, textRightOffset)
 
-                # make right arrow
-                arrow = ArrowETC(
-                    path=path_right, arrow_head=arrow_head, arrow_width=arrow_width
-                )
-                # get vertices
-                x = arrow.x_vertices[:-1]
-                y = arrow.y_vertices[:-1]
-                self.ax.plot(x, y, color=ec_C, lw=lw)
-                # fill arrow if desired
-                if fill_connection:
-                    self.ax.fill(x, y, color=fc_C)
+    def _get_side_coords(
+        self, box: LogicBox, side: str, offset: float = 0.0
+    ) -> tuple[float, float]:
+        """
+        Return coordinates on a box edge or corner, optionally nudged outward.
 
-            # take the case that boxB is to the right of boxC
-            elif boxB.xCenter > boxC.xCenter:
-                # get paths
-                path_left, path_right = self._get_pathsForBi_left_then_right(
-                    Ax2, Ay2, left_box=boxC, right_box=boxB, tip_offset=tip_offset
-                )
-                # make left arrow
-                arrow = ArrowETC(
-                    path=path_left, arrow_head=arrow_head, arrow_width=arrow_width
-                )
-                # get vertices
-                x = arrow.x_vertices[:-1]
-                y = arrow.y_vertices[:-1]
-                self.ax.plot(x, y, color=ec_C, lw=lw)
-                # fill arrow if desired
-                if fill_connection:
-                    self.ax.fill(x, y, color=fc_C)
+        Parameters
+        ----------
+        box : LogicBox
+            The box to extract a coordinate from.
+        side : str
+            One of 'left', 'right', 'top', 'bottom', 'center', or a corner like 'topLeft'.
+        offset : float, optional
+            Distance to offset the point outward in the direction of connection.
+        """
+        if (
+            box.xLeft is None
+            or box.xCenter is None
+            or box.xRight is None
+            or box.yTop is None
+            or box.yCenter is None
+            or box.yBottom is None
+        ):
+            raise ValueError(
+                "box LogicBox layout is not initialized before accessing coordinates."
+            )
 
-                # make right arrow
-                arrow = ArrowETC(
-                    path=path_right, arrow_head=arrow_head, arrow_width=arrow_width
-                )
-                # get vertices
-                x = arrow.x_vertices[:-1]
-                y = arrow.y_vertices[:-1]
-                self.ax.plot(x, y, color=ec_B, lw=lw)
-                # fill arrow if desired
-                if fill_connection:
-                    self.ax.fill(x, y, color=fc_B)
+        match side:
+            case "left":
+                return box.xLeft - offset, box.yCenter
+            case "right":
+                return box.xRight + offset, box.yCenter
+            case "top":
+                return box.xCenter, box.yTop + offset
+            case "bottom":
+                return box.xCenter, box.yBottom - offset
+            case "center":
+                return box.xCenter, box.yCenter
+            case "topLeft":
+                return box.xLeft - offset, box.yTop + offset
+            case "topRight":
+                return box.xRight + offset, box.yTop + offset
+            case "bottomLeft":
+                return box.xLeft - offset, box.yBottom - offset
+            case "bottomRight":
+                return box.xRight + offset, box.yBottom - offset
+            case _:
+                raise ValueError(f"Invalid side: '{side}'")
 
     def add_connection(
         self,
         boxA: LogicBox,
         boxB: LogicBox,
+        segmented: bool = False,
         arrow_head: bool = True,
         arrow_width: float = 0.5,
         fill_connection: bool = True,
@@ -692,37 +753,80 @@ class LogicTree:
         fc: Optional[str] = None,
         ec: Optional[str] = None,
         lw: float = 0.7,
+        sideA: Optional[
+            Literal[
+                "left",
+                "topLeft",
+                "top",
+                "topRight",
+                "right",
+                "bottomRight",
+                "bottom",
+                "bottomLeft",
+                "center",
+            ]
+        ] = None,
+        sideB: Optional[
+            Literal[
+                "left",
+                "topLeft",
+                "top",
+                "topRight",
+                "right",
+                "bottomRight",
+                "bottom",
+                "bottomLeft",
+                "center",
+            ]
+        ] = None,
     ) -> None:
         """
-        Create a straight or segmented connection (arrow) from boxA to boxB.
+        Draw a straight or segmented arrow connection between two LogicBoxes.
+
+        The arrow can be automatically routed or user-directed by specifying entry and
+        exit sides (edges or corners). Optional offsets ensure that arrows avoid overlap
+        with box borders.
 
         Parameters
         ----------
-        boxA, boxB : LogicBox
-            Source and target boxes for the connection.
+        boxA : LogicBox
+            The source LogicBox from which the arrow originates.
+        boxB : LogicBox
+            The target LogicBox to which the arrow points.
+        segmented : bool, optional
+            If True, non-aligned boxes will be connected with segmented (elbow) arrows.
+            If False, a direct connection is used. Default is False.
         arrow_head : bool, optional
-            If True, draws an arrowhead at boxB.
+            Whether to draw an arrowhead pointing at `boxB`. Default is True.
         arrow_width : float, optional
-            Width of the arrow in data coordinates. Default is 0.5.
+            Width of the arrow shaft in data units. Default is 0.5.
         fill_connection : bool, optional
-            Whether to fill the arrow with color.
+            Whether to fill the arrow body with color. Default is True.
         butt_offset : float, optional
-            Offset of the arrow's butt to avoid overlapping with boxA.
+            Distance to offset the starting point of the arrow (away from `boxA`) in the
+            direction of the connection. Default is 0.
         tip_offset : float, optional
-            Offset of the arrow's tip to avoid overlapping with boxB.
+            Distance to offset the tip of the arrow (away from `boxB`) to avoid overlap.
+            Default is 0.
         fc : str, optional
-            Fill color; if None, uses boxB's face color. If 'ec', uses boxB's edge color.
+            Fill color of the arrow body. If None, uses `boxB`'s face color. If 'ec', uses `boxB`'s edge color.
         ec : str, optional
-            Edge color; if None, uses boxB's edge color. If 'fc', uses boxB's face color.
+            Edge color (outline) of the arrow. If None, uses `boxB`'s edge color. If 'fc', uses face color.
         lw : float, optional
-            Line width of the arrow edges.
+            Line width of the arrow outline. Default is 0.7.
+        sideA : {'left', 'topLeft', 'right', 'topRight', 'top', 'bottomRight', 'bottom', 'bottomLeft' 'center'}, optional
+            The side or corner of `boxA` where the arrow starts. Options include:
+            'left', 'right', 'top', 'bottom', 'center', 'topLeft', 'topRight', 'bottomLeft', 'bottomRight'.
+            If not provided, it is inferred automatically based on box positions.
+        sideB : {'left', 'topLeft', 'right', 'topRight', 'top', 'bottomRight', 'bottom', 'bottomLeft' 'center'}, optional
+            The side or corner of `boxB` where the arrow ends. Same options as `sideA`.
 
         Raises
         ------
         ValueError
-            If boxes are not aligned in the same row or column and cannot be connected directly.
+            If boxA and boxB have the same center position.
         ValueError
-            If `xLeft`, `xCenter`, `xRight`, `yTop`, `yCenter`, or `yBottom` are None for either `boxA` or `boxB`.
+            If required box coordinates are not initialized.
         """
         if (
             boxA.xLeft is None
@@ -747,74 +851,327 @@ class LogicTree:
                 "boxB LogicBox layout is not initialized before accessing coordinates."
             )
 
-        # handle colors
         if fill_connection:
-            # if no fc is chosen, take the fc of connection to be fc of boxB
             if fc is None or fc == "fc":
                 fc = boxB.face_color
             elif fc == "ec":
                 fc = boxB.edge_color
-        # if no ec is chosen, take ec of connection to be ec of boxB
         if ec is None or ec == "ec":
             ec = boxB.edge_color
         elif ec == "fc":
             ec = boxB.face_color
 
-        # first case, boxA and boxB are on the same row
-        if boxA.yCenter == boxB.yCenter:
-            # boxA is to the left of boxB
-            if boxA.xCenter < boxB.xCenter:
-                Ax, Ay = boxA.xRight + butt_offset, boxA.yCenter
-                Bx, By = boxB.xLeft - tip_offset, boxB.yCenter
-            # boxA is to the right of boxB
-            elif boxA.xCenter > boxB.xCenter:
-                Ax, Ay = boxA.xLeft - butt_offset, boxA.yCenter
-                Bx, By = boxB.xRight + tip_offset, boxB.yCenter
+        if boxA.xCenter == boxB.xCenter and boxA.yCenter == boxB.yCenter:
+            raise ValueError("Boxes cannot have the same position.")
+
+        dx = boxB.xCenter - boxA.xCenter
+        dy = boxB.yCenter - boxA.yCenter
+        theta = degrees(atan2(dy, dx))
+
+        def auto_side(theta: float, for_A: bool) -> str:
+            if -45 <= theta <= 45:
+                return "right" if for_A else "left"
+            elif 45 < theta <= 135:
+                return "top" if for_A else "bottom"
+            elif theta > 135 or theta < -135:
+                return "left" if for_A else "right"
             else:
-                raise ValueError(
-                    "Boxes must be aligned horizontally or vertically to create a connection."
-                )
-            path = [(Ax, Ay), (Bx, By)]
-        # second case, boxA is below boxB
-        elif boxA.yCenter < boxB.yCenter:
-            # same column
-            if boxA.xCenter == boxB.xCenter:
-                Ax, Ay = boxA.xCenter, boxA.yTop + butt_offset
-                Bx, By = boxB.xCenter, boxB.yBottom - tip_offset
-                path = [(Ax, Ay), (Bx, By)]
-            # boxes are offset in the x-axis
+                return "bottom" if for_A else "top"
+
+        resolved_sideA = sideA or auto_side(theta, for_A=True)
+        resolved_sideB = sideB or auto_side(theta, for_A=False)
+
+        # Get anchor positions
+        start = self._get_side_coords(boxA, resolved_sideA)
+        end = self._get_side_coords(boxB, resolved_sideB)
+
+        # Apply offset at start
+        if butt_offset:
+            match resolved_sideA:
+                case "left":
+                    start = (start[0] - butt_offset, start[1])
+                case "right":
+                    start = (start[0] + butt_offset, start[1])
+                case "top":
+                    start = (start[0], start[1] + butt_offset)
+                case "bottom":
+                    start = (start[0], start[1] - butt_offset)
+                case "topLeft":
+                    start = (start[0] - butt_offset, start[1] + butt_offset)
+                case "topRight":
+                    start = (start[0] + butt_offset, start[1] + butt_offset)
+                case "bottomLeft":
+                    start = (start[0] - butt_offset, start[1] - butt_offset)
+                case "bottomRight":
+                    start = (start[0] + butt_offset, start[1] - butt_offset)
+
+        # Apply offset at end
+        if tip_offset:
+            match resolved_sideB:
+                case "left":
+                    end = (end[0] - tip_offset, end[1])
+                case "right":
+                    end = (end[0] + tip_offset, end[1])
+                case "top":
+                    end = (end[0], end[1] + tip_offset)
+                case "bottom":
+                    end = (end[0], end[1] - tip_offset)
+                case "topLeft":
+                    end = (end[0] - tip_offset, end[1] + tip_offset)
+                case "topRight":
+                    end = (end[0] + tip_offset, end[1] + tip_offset)
+                case "bottomLeft":
+                    end = (end[0] - tip_offset, end[1] - tip_offset)
+                case "bottomRight":
+                    end = (end[0] + tip_offset, end[1] - tip_offset)
+
+        if segmented:
+            if boxA.yCenter == boxB.yCenter:
+                # same row
+                path = [start, end]
+            elif boxA.yCenter < boxB.yCenter:
+                # A below B
+                if boxA.xCenter == boxB.xCenter:
+                    path = [start, end]
+                else:
+                    midY = (boxA.yTop + boxB.yBottom) / 2
+                    path = [start, (start[0], midY), (end[0], midY), end]
             else:
-                Ax, Ay = boxA.xCenter, boxA.yTop + butt_offset
-                Bx = boxB.xCenter
-                By = (boxB.yBottom + boxA.yTop) / 2
-                Cx, Cy = Bx, boxB.yBottom - tip_offset
-                path = [(Ax, Ay), (Bx, By), (Cx, Cy)]
-        # third case, boxA is above boxB
-        elif boxA.yCenter > boxB.yCenter:
-            # same column
-            if boxA.xCenter == boxB.xCenter:
-                Ax, Ay = boxA.xCenter, boxA.yBottom - butt_offset
-                Bx, By = boxB.xCenter, boxB.yTop + tip_offset
-                path = [(Ax, Ay), (Bx, By)]
-            # boxes are offset in the x-axis
-            else:
-                Ax, Ay = boxA.xCenter, boxA.yBottom - butt_offset
-                Bx = boxA.xCenter
-                By = (boxB.yTop + boxA.yBottom) / 2
-                Cx, Cy = boxB.xCenter, By
-                Dx, Dy = Cx, boxB.yTop + tip_offset
-                path = [(Ax, Ay), (Bx, By), (Cx, Cy), (Dx, Dy)]
+                # A above B
+                if boxA.xCenter == boxB.xCenter:
+                    path = [start, end]
+                else:
+                    midY = (boxA.yBottom + boxB.yTop) / 2
+                    path = [start, (start[0], midY), (end[0], midY), end]
         else:
+            path = [start, end]
+
+        arrow = ArrowETC(path=path, arrow_head=arrow_head, arrow_width=arrow_width)
+        x, y = arrow.x_vertices, arrow.y_vertices
+        self.ax.plot(x, y, color=ec, lw=lw)
+        if fill_connection:
+            self.ax.fill(x, y, color=fc)
+
+    def add_bezier_connection(
+        self,
+        boxA: LogicBox,
+        boxB: LogicBox,
+        style: Literal["smooth", "elbow", "s-curve"] = "smooth",
+        control_points: Optional[list[tuple[float, float]]] = None,
+        arrow_head: bool = True,
+        arrow_width: float = 0.5,
+        fill_connection: bool = True,
+        fc: Optional[str] = None,
+        ec: Optional[str] = None,
+        lw: float = 0.7,
+        sideA: Optional[
+            Literal[
+                "left",
+                "topLeft",
+                "top",
+                "topRight",
+                "right",
+                "bottomRight",
+                "bottom",
+                "bottomLeft",
+                "center",
+            ]
+        ] = None,
+        sideB: Optional[
+            Literal[
+                "left",
+                "topLeft",
+                "top",
+                "topRight",
+                "right",
+                "bottomRight",
+                "bottom",
+                "bottomLeft",
+                "center",
+            ]
+        ] = None,
+        butt_offset: float = 0,
+        tip_offset: float = 0,
+        n_bezier: int = 600,
+    ) -> None:
+        """
+        Add a curved Bezier arrow between two LogicBox objects.
+
+        This method creates a smoothly curved connection between two boxes using the ArrowETC class
+        with Bezier interpolation. You may choose from preset path styles, provide your own control points,
+        or override entry and exit sides for fine-grained layout control. Optional offsets help prevent
+        visual collisions at the arrow's tail and tip.
+
+        Parameters
+        ----------
+        boxA : LogicBox
+            The source LogicBox from which the arrow begins.
+        boxB : LogicBox
+            The target LogicBox to which the arrow points.
+        style : {'smooth', 'elbow', 's-curve'}, optional
+            A preset style used to generate control points for the curve when `control_points` is not provided.
+            - 'smooth': a gently arced curve bulging perpendicular to the line between boxes
+            - 'elbow': a stepped right-angle bend using two control points
+            - 's-curve': an S-shaped double bend for visual separation
+        control_points : list of (float, float), optional
+            Optional list of user-defined control points for full manual Bezier specification.
+            If provided, overrides the `style` argument.
+        arrow_head : bool, optional
+            If True, an arrowhead will be added at the end of the curve. Default is True.
+        arrow_width : float, optional
+            Width of the arrow shaft in data coordinates. Default is 0.5.
+        fill_connection : bool, optional
+            Whether to fill the arrow polygon with color. Default is True.
+        fc : str, optional
+            Fill color for the arrow body. If None, uses boxB's face color. If 'ec', uses boxB's edge color.
+        ec : str, optional
+            Edge color for the arrow outline. If None, uses boxB's edge color. If 'fc', uses boxB's face color.
+        lw : float, optional
+            Line width for the arrow outline. Default is 0.7.
+        sideA : {'left', 'topLeft', 'right', 'topRight', 'top', 'bottomRight', 'bottom', 'bottomLeft' 'center'}, optional
+            Optional side of `boxA` to exit from. If not specified, automatically inferred from box geometry.
+        sideB : {'left', 'topLeft', 'right', 'topRight', 'top', 'bottomRight', 'bottom', 'bottomLeft' 'center'}, optional
+            Optional side of `boxB` to enter. If not specified, automatically inferred.
+        butt_offset : float, optional
+            Offset distance from `boxA` to begin the curve, pushing the start point outward from its edge.
+        tip_offset : float, optional
+            Offset distance from `boxB` to end the curve, pulling the arrow tip away from the box.
+        n_bezier : int, optional
+            The number of sample points used for drawing the bezier curves. If your arrow head is distorted,
+            try increasing this value. Default 600.
+
+
+        Raises
+        ------
+        ValueError
+            If boxA and boxB share the same center coordinates.
+        ValueError
+            If any bounding box attributes are uninitialized.
+        ValueError
+            If `style` is not recognized when `control_points` is not provided.
+        """
+        if (
+            boxA.xLeft is None
+            or boxA.xCenter is None
+            or boxA.xRight is None
+            or boxA.yTop is None
+            or boxA.yCenter is None
+            or boxA.yBottom is None
+        ):
             raise ValueError(
-                "Boxes must be aligned horizontally or vertically to create a connection."
+                "boxA LogicBox layout is not initialized before accessing coordinates."
+            )
+        if (
+            boxB.xLeft is None
+            or boxB.xCenter is None
+            or boxB.xRight is None
+            or boxB.yTop is None
+            or boxB.yCenter is None
+            or boxB.yBottom is None
+        ):
+            raise ValueError(
+                "boxB LogicBox layout is not initialized before accessing coordinates."
             )
 
-        # create arrow object and
-        arrow = ArrowETC(path=path, arrow_head=arrow_head, arrow_width=arrow_width)
-        x = arrow.x_vertices
-        y = arrow.y_vertices
+        if fill_connection:
+            if fc is None or fc == "fc":
+                fc = boxB.face_color
+            elif fc == "ec":
+                fc = boxB.edge_color
+        if ec is None or ec == "ec":
+            ec = boxB.edge_color
+        elif ec == "fc":
+            ec = boxB.face_color
+
+        if boxA.xCenter == boxB.xCenter and boxA.yCenter == boxB.yCenter:
+            raise ValueError("Boxes cannot have the same position.")
+
+        dx = boxB.xCenter - boxA.xCenter
+        dy = boxB.yCenter - boxA.yCenter
+        theta = degrees(atan2(dy, dx))
+
+        def auto_side(theta: float, for_A: bool) -> str:
+            if -45 <= theta <= 45:
+                return "right" if for_A else "left"
+            elif 45 < theta <= 135:
+                return "top" if for_A else "bottom"
+            elif theta > 135 or theta < -135:
+                return "left" if for_A else "right"
+            else:
+                return "bottom" if for_A else "top"
+
+        resolved_sideA = sideA or auto_side(theta, for_A=True)
+        resolved_sideB = sideB or auto_side(theta, for_A=False)
+
+        start = self._get_side_coords(boxA, resolved_sideA, tip_offset)
+        end = self._get_side_coords(boxB, resolved_sideB, butt_offset)
+
+        # Apply butt offset
+        if butt_offset:
+            match resolved_sideA:
+                case "left":
+                    start = (start[0] - butt_offset, start[1])
+                case "right":
+                    start = (start[0] + butt_offset, start[1])
+                case "top":
+                    start = (start[0], start[1] + butt_offset)
+                case "bottom":
+                    start = (start[0], start[1] - butt_offset)
+
+        # Apply tip offset
+        if tip_offset:
+            match resolved_sideB:
+                case "left":
+                    end = (end[0] - tip_offset, end[1])
+                case "right":
+                    end = (end[0] + tip_offset, end[1])
+                case "top":
+                    end = (end[0], end[1] + tip_offset)
+                case "bottom":
+                    end = (end[0], end[1] - tip_offset)
+
+        if control_points is not None:
+            path = [start] + control_points + [end]
+        else:
+            match style:
+                case "smooth":
+                    cx = (start[0] + end[0]) / 2
+                    cy = (start[1] + end[1]) / 2
+                    normal = (-dy, dx)
+                    mag = (dx**2 + dy**2) ** 0.5 or 1e-6
+                    offset = 0.2 * mag
+                    ctrl = (
+                        cx + normal[0] / mag * offset,
+                        cy + normal[1] / mag * offset,
+                    )
+                    path = [start, ctrl, end]
+                case "elbow":
+                    ctrl1 = (end[0], start[1])
+                    ctrl2 = (end[0], end[1])
+                    path = [start, ctrl1, ctrl2]
+                case "s-curve":
+                    d = 0.3 * (dx**2 + dy**2) ** 0.5
+                    ctrl1 = (
+                        (2 * start[0] + end[0]) / 3,
+                        (2 * start[1] + end[1]) / 3 - d,
+                    )
+                    ctrl2 = (
+                        (start[0] + 2 * end[0]) / 3,
+                        (start[1] + 2 * end[1]) / 3 + d,
+                    )
+                    path = [start, ctrl1, ctrl2, end]
+                case _:
+                    raise ValueError(f"Unknown style '{style}'")
+
+        arrow = ArrowETC(
+            path=path,
+            arrow_head=arrow_head,
+            arrow_width=arrow_width,
+            bezier=True,
+            bezier_n=n_bezier,
+        )
+        x, y = arrow.x_vertices, arrow.y_vertices
         self.ax.plot(x, y, color=ec, lw=lw)
-        # fill arrow if desired
         if fill_connection:
             self.ax.fill(x, y, color=fc)
 

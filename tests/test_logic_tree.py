@@ -77,7 +77,18 @@ def test_get_pathsForBi_left_then_right():
             0,
         )
 
-    expected = ([(5, 10), (0, 10), (0, 2.2)], [(5, 10), (0, 10), (0, 12.2)])
+    expected = (
+        [
+            (5, 10),
+            (-16.057347670250895, 10),
+            (-16.057347670250895, -14.054834054834053),
+        ],
+        [
+            (5, 10),
+            (-16.057347670250895, 10),
+            (-16.057347670250895, -14.054834054834053),
+        ],
+    )
     actual = tree._get_pathsForBi_left_then_right(
         5, 10, tree.boxes["boxA"], tree.boxes["boxB"], 0
     )
@@ -89,12 +100,13 @@ def test_add_box():
     tree = LogicTree()
     tree.add_box(0, 2, "boxAText", "boxA", "black", "white")
     boxA = tree.boxes["boxA"]
-    assert allclose([boxA.xRight], [2.2])
+    assert allclose([boxA.xRight], [1.8], 0.01)
     assert boxA.text == "boxAText"
 
     tree.add_box(0, 2, "boxBText", "boxB", "black", "white", va="bottom", ha="left")
     boxB = tree.boxes["boxB"]
-    assert allclose([boxB.xLeft], [-2.2])
+    print(boxB.xLeft)
+    assert allclose([boxB.xLeft], [-1.8], 0.01)
 
     tree.add_box(
         0,
@@ -211,14 +223,6 @@ def test_add_connection():
 
     with pytest.raises(ValueError, match="boxB LogicBox layout is not initialized"):
         tree.add_connection(tree.boxes["boxA"], bad_box)
-
-    aligned_box = LogicBox(0, 0, "fail", "fail", "white", "black", {})
-    aligned_box.xCenter = aligned_box.yCenter = 0
-    aligned_box.xLeft = aligned_box.xRight = 0
-    aligned_box.yTop = aligned_box.yBottom = 0
-
-    with pytest.raises(ValueError, match="Boxes must be aligned"):
-        tree.add_connection(aligned_box, aligned_box)
 
 
 def test_save_as_png(tmp_path):

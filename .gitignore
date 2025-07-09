@@ -8,3 +8,4 @@ docs/_build/
 .pytest_cache/
 .coverage
 tests/__pycache__
+examples/test.py
