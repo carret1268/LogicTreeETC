@@ -456,6 +456,49 @@ def test_add_bezier_connection():
         tree.add_bezier_connection(tree.boxes["boxA"], broken_box)
 
 
+# smoke test for match case blocks determining tip and butt offset
+@pytest.mark.parametrize(
+    "side",
+    [
+        "left",
+        "topLeft",
+        "top",
+        "topRight",
+        "right",
+        "bottomRight",
+        "bottom",
+        "bottomLeft",
+    ],
+)
+def test_add_connection_sides_cover_match_cases(side):
+    tree = LogicTree()
+
+    # Add two dummy boxes
+    tree.add_box(0, 0, "A", "boxA", "black", "white")
+    tree.add_box(10, 10, "B", "boxB", "white", "black")
+    tree.add_box(-10, 10, "C", "boxC", "white", "black")
+
+    # This should run the match-case logic for both sideA and sideB
+    tree.add_connection(
+        tree.boxes["boxA"],
+        tree.boxes["boxB"],
+        sideA=side,
+        sideB=side,
+        tip_offset=0.1,
+        butt_offset=0.1,
+    )
+    tree.add_bezier_connection(
+        tree.boxes["boxB"],
+        tree.boxes["boxC"],
+        sideA=side,
+        sideB=side,
+        tip_offset=0.2,
+        butt_offset=0.1,
+    )
+
+    matplotlib.pyplot.close()
+
+
 def test_save_as_png(tmp_path):
     tree = LogicTree(title="Arrow Test")
     a = create_logic_box(tree, "A", 10, 20)

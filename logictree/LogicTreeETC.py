@@ -496,7 +496,7 @@ class LogicTree:
         """
         if start == end:
             raise ValueError("Arrow start and end points must differ.")
-        
+
         # Vector from start to end
         dx = end[0] - start[0]
         dy = end[1] - start[1]
