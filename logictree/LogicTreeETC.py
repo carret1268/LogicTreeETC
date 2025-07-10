@@ -38,6 +38,7 @@ from typing import Any, Dict, List, Literal, Optional, Tuple, Union
 from math import atan2, degrees
 from matplotlib.patches import BoxStyle
 import matplotlib.pyplot as plt
+from numpy import hypot
 
 from arrowetc import ArrowETC
 from .LogicBoxETC import LogicBox
@@ -412,7 +413,7 @@ class LogicTree:
 
         return myBox
 
-    def add_arrow(self, arrow: ArrowETC) -> None:
+    def add_arrow(self, arrow: ArrowETC, fill_arrow: bool = True) -> None:
         """
         Add a pre-constructed ArrowETC object to the LogicTree canvas.
 
@@ -424,6 +425,9 @@ class LogicTree:
         ----------
         arrow : ArrowETC
             A ready-to-render ArrowETC object.
+        fill_arrow : bool, optional
+            If True, the arrow will be filled with its ArrowETC.fc attribute. If False,
+            there will be no fill. Default is True.
 
         Raises
         ------
@@ -434,7 +438,7 @@ class LogicTree:
             raise ValueError("ArrowETC must have a path with at least two points.")
 
         self.arrows.append(arrow)
-        self.ax = arrow.draw_to_ax(self.ax)
+        self.ax = arrow.draw_to_ax(self.ax, fill_arrow=fill_arrow)
 
     def add_arrow_between(
         self,
@@ -442,15 +446,14 @@ class LogicTree:
         end: tuple[float, float],
         arrow_width: float = 0.5,
         arrow_head: bool = True,
-        bezier: bool = False,
         tip_offset: float = 0.0,
         butt_offset: float = 0.0,
         facecolor: str = "black",
         edgecolor: str = "black",
-        alpha: float = 1.0,
         zorder: float = 1.0,
         linewidth: float = 1.0,
         linestyle: str = "-",
+        fill_arrow: bool = True,
     ) -> None:
         """
         Add a quick arrow between two points using default ArrowETC settings.
@@ -468,8 +471,6 @@ class LogicTree:
             Width of the arrow shaft. Default is 0.5.
         arrow_head : bool, optional
             Whether to draw an arrowhead. Default is True.
-        bezier : bool, optional
-            Whether to render the arrow as a Bezier curve. Default is False.
         tip_offset : float, optional
             Distance to offset the arrow tip (e.g., to avoid overlap). Default is 0.0.
         butt_offset : float, optional
@@ -478,14 +479,15 @@ class LogicTree:
             Fill color of the arrow. Default is "black".
         edgecolor : str, optional
             Outline color of the arrow. Default is "black".
-        alpha : float, optional
-            Opacity of the arrow. Default is 1.0.
         zorder : float, optional
             Drawing layer priority. Default is 1.0.
         linewidth : float, optional
             Outline thickness. Default is 1.0.
         linestyle : str, optional
             Line style (e.g., "-", "--"). Default is "-".
+        fill_arrow : bool, optional
+            If True, the arrow will be filled with its ArrowETC.fc attribute. If False,
+            there will be no fill. Default is True.
 
         Raises
         ------
@@ -494,23 +496,31 @@ class LogicTree:
         """
         if start == end:
             raise ValueError("Arrow start and end points must differ.")
+        
+        # Vector from start to end
+        dx = end[0] - start[0]
+        dy = end[1] - start[1]
+        length = hypot(dx, dy)
 
-        path = [start, end]
+        # Unit direction vector
+        ux, uy = dx / length, dy / length
+
+        # Apply offsets
+        new_start = (start[0] + ux * butt_offset, start[1] + uy * butt_offset)
+        new_end = (end[0] - ux * tip_offset, end[1] - uy * tip_offset)
+
+        path = [new_start, new_end]
         arrow = ArrowETC(
             path=path,
             arrow_width=arrow_width,
             arrow_head=arrow_head,
-            bezier=bezier,
-            tip_offset=tip_offset,
-            butt_offset=butt_offset,
-            facecolor=facecolor,
-            edgecolor=edgecolor,
-            alpha=alpha,
+            fc=facecolor,
+            ec=edgecolor,
             zorder=zorder,
-            linewidth=linewidth,
-            linestyle=linestyle,
+            lw=linewidth,
+            ls=linestyle,
         )
-        self.add_arrow(arrow)
+        self.add_arrow(arrow, fill_arrow=fill_arrow)
 
     def add_connection_biSplit(
         self,
@@ -594,7 +604,10 @@ class LogicTree:
         textRightOffset : {'above', 'below'}, optional
             Whether to place the `textRight` label above or below the arrow shaft. Default is 'above'.
         text_kwargs : dict, optional
-            Dictionary of matplotlib-compatible text styling options. Keys may include:
+            Dictionary of matplotlib-compatible text styling options.
+
+            Keys may include:
+
                 - 'fontsize' (int): font size (default: 12)
                 - 'fontname' (str): font family (default: 'sans-serif')
                 - 'color' (str): font color (default: 'white')
@@ -604,7 +617,6 @@ class LogicTree:
         ValueError
             If any required coordinates (`xLeft`, `xCenter`, `xRight`, `yTop`, `yCenter`, `yBottom`) of any input box
             are uninitialized (i.e., None).
-
         ValueError
             If `boxA` is not clearly vertically above or below both `boxB` and `boxC`.
 
@@ -613,7 +625,6 @@ class LogicTree:
         This function is intended for use with properly initialized `LogicBox` instances, such as those added via
         LogicTree's `add_box()` method. It is useful for visualizing binary decision splits in flow diagrams or logic trees.
         """
-
         if (
             boxA.xLeft is None
             or boxA.xCenter is None
