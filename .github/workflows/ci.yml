@@ -46,7 +46,7 @@ jobs:
           cm-super
 
     - name: Run linter (Ruff)
-      run: ruff check .
+      run: ruff check logictree/
 
     - name: Check formatting (Ruff)
       run: ruff format --check .
@@ -55,7 +55,7 @@ jobs:
       run: mypy logictree/
 
     - name: Run security check (Bandit)
-      run: bandit -r logictree
+      run: bandit -r logictree/
 
     - name: Run tests with coverage
       run: |

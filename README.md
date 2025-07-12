@@ -269,6 +269,20 @@ sudo apt install texlive-latex-base texlive-fonts-recommended texlive-fonts-extr
 
 ---
 
+## Development
+
+This project uses the following tools for code quality and security:
+
+- **Ruff**: for fast linting and auto-formatting.
+- **mypy**: for static type checking.
+- **Bandit**: for security scanning.
+- **GitHub Actions CI**: runs tests, type checks, linting, and security checks on every push.
+- **Dependabot**: automatically checks for dependency updates.
+
+See the [.github/workflows/](https://github.com/carret1268/LogicTreeETC/tree/main/.github/workflows) directory for CI configurations.
+
+---
+
 ## License
 
 This project is licensed under CC0 (public domain). See the `LICENSE` file for details.
