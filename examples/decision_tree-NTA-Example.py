@@ -1,26 +1,26 @@
 """
-Example decision tree diagram from dummy non-targeted analysis (NTA) data.
+Visual Decision Tree for Sample Filtering in a Non-Targeted Analysis (NTA) Workflow
 
-This example shows how to create a decision (logic) tree using the LogicTree package.
-It demonstrates:
-- Reading decision thresholds and counts from a CSV file.
-- Adding boxes for each decision node, with labels, colors, alignment, and rotation.
-- Connecting boxes with multi-segment arrows to show the decision flow.
-- Annotating thresholds with LaTeX-formatted text (using `use_tex_rendering=True`).
-- Styling everything: border colors, background colors, font properties, and titles.
+This example illustrates how to construct a logic tree using the LogicTree package
+to model how samples are retained or removed based on a sequence of analytical
+threshold checks. The thresholds applied are:
 
-This script produces a figure illustrating how samples in a dataset progress
-through a decision tree based on replicate, CV, and MDL thresholds, with kept/removed flags.
+- Replicate count threshold
+- Coefficient of Variation (CV) threshold
+- Method Detection Limit (MDL) threshold
 
-Usage:
-------
-Run this script directly. It will save a PNG named
-'DecisionTree_DSA-Example.png' in the examples directory.
+The tree is constructed from a CSV file containing sample counts at each decision
+point and dynamically labels each box with both logical conditions and sample counts.
 
-Dependencies:
--------------
-- logic_tree_data.csv: CSV containing the counts and threshold parameters.
-- Python packages: matplotlib, pandas, your installed logictree package.
+Key Features:
+- Loads parameters and counts from a CSV file
+- Adds labeled boxes and arrows for each stage of decision logic
+- Uses LaTeX-rendered threshold annotations
+- Visually distinguishes kept, missing, and failed samples with colors
+- Embeds intermediate annotations like "Replicate Threshold" and "CV Threshold"
+
+Generated Output:
+    resources/logictree_examples/DecisionTree_NTA-Example.png
 """
 
 from pathlib import Path
@@ -40,7 +40,7 @@ from logictree import LogicTree  # noqa: E402
 
 def make_tree():
     # Load CSV with counts and thresholds
-    df = pd.read_csv(f"{Path(__file__).resolve().parent}/logic_tree_data.csv")
+    df = pd.read_csv(f"{Path(__file__).resolve().parent}/data/logic_tree_data.csv")
 
     # Build text for first row (total/missing samples)
     n_total_sample_occurence = df["n_total_sample_occurence"].iloc[0]
@@ -82,15 +82,26 @@ def make_tree():
 
     # Box y-positions and arrow width
     y_row1, y_row2, y_row3, y_row4 = 110, 60, 10, -30
-    arr_width = 3.8
-    tip_offset = 0.9
+    arr_width = 15
+    tip_offset = 0.3
+    butt_offset = -0.4
 
     # Axis limits
     xlims = (-50, 135)
     ylims = (-50, 135)
     logic_tree = LogicTree(
-        xlims=xlims, ylims=ylims, title="Logic Tree - Sample Occurence"
+        xlims=xlims,
+        ylims=ylims,
+        title="Logic Tree - Sample Occurence",
     )
+
+    # predefine colors
+    pass_fc = "white"
+    pass_ec = "black"
+    missing_fc = "#afafaf"
+    missing_ec = "#3D3D3D"
+    fail_fc = "#f58181"
+    fail_ec = "#a40000"
 
     # Add first row boxes
     logic_tree.add_box(
@@ -98,8 +109,8 @@ def make_tree():
         ypos=y_row1,
         text=str_total_sample_occurence,
         box_name="Total Sample Occurence",
-        bbox_fc="black",
-        bbox_ec="white",
+        bbox_fc=pass_fc,
+        bbox_ec=pass_ec,
     )
     logic_tree.add_box(
         xpos=99,
@@ -107,8 +118,8 @@ def make_tree():
         text=str_missing_occurence,
         ha="left",
         box_name="Missing",
-        bbox_fc="dimgrey",
-        bbox_ec="xkcd:light blue grey",
+        bbox_fc=missing_fc,
+        bbox_ec=missing_ec,
     )
 
     # Add second row boxes
@@ -118,8 +129,8 @@ def make_tree():
         text=str_over_replicate,
         ha="right",
         box_name="Over Replicate",
-        bbox_fc="black",
-        bbox_ec="xkcd:bright sky blue",
+        bbox_fc=pass_fc,
+        bbox_ec=pass_ec,
     )
     logic_tree.add_box(
         xpos=65,
@@ -127,8 +138,8 @@ def make_tree():
         text=str_under_replicate,
         ha="left",
         box_name="Under Replicate",
-        bbox_fc="dimgrey",
-        bbox_ec="xkcd:light blue grey",
+        bbox_fc=missing_fc,
+        bbox_ec=missing_ec,
     )
 
     # Add third row boxes
@@ -138,8 +149,8 @@ def make_tree():
         text=str_under_CV,
         ha="right",
         box_name="Under CV",
-        bbox_fc="black",
-        bbox_ec="xkcd:water blue",
+        bbox_fc=pass_fc,
+        bbox_ec=pass_ec,
     )
     logic_tree.add_box(
         xpos=71,
@@ -147,8 +158,8 @@ def make_tree():
         text=str_over_CV,
         ha="left",
         box_name="Over CV",
-        bbox_fc="xkcd:cherry",
-        bbox_ec="xkcd:rosa",
+        bbox_fc=fail_fc,
+        bbox_ec=fail_ec,
     )
 
     # Add fourth row boxes
@@ -158,8 +169,8 @@ def make_tree():
         text=str_under_CV_over_MDL,
         ha="right",
         box_name="Under CV, Over MDL",
-        bbox_fc="black",
-        bbox_ec="xkcd:ocean",
+        bbox_fc=pass_fc,
+        bbox_ec=pass_ec,
     )
     logic_tree.add_box(
         xpos=-6,
@@ -167,8 +178,8 @@ def make_tree():
         text=str_under_CV_under_MDL,
         ha="left",
         box_name="Under CV, Under MDL",
-        bbox_fc="dimgrey",
-        bbox_ec="xkcd:light blue grey",
+        bbox_fc=missing_fc,
+        bbox_ec=missing_ec,
     )
     logic_tree.add_box(
         xpos=96,
@@ -176,8 +187,8 @@ def make_tree():
         text=str_over_CV_over_MDL,
         ha="right",
         box_name="Over CV, Over MDL",
-        bbox_fc="xkcd:rust orange",
-        bbox_ec="xkcd:light salmon",
+        bbox_fc=fail_fc,
+        bbox_ec=fail_ec,
     )
     logic_tree.add_box(
         xpos=105,
@@ -185,16 +196,22 @@ def make_tree():
         text=str_over_CV_under_MDL,
         ha="left",
         box_name="Over CV, Under MDL",
-        bbox_fc="dimgrey",
-        bbox_ec="xkcd:light blue grey",
+        bbox_fc=missing_fc,
+        bbox_ec=missing_ec,
     )
 
     # Add arrows and bifurcations connecting boxes
+    arrow_text_style = {
+        "fontname": "Times New Roman",
+        "fontsize": 12,
+        "color": "black",
+        "fontstyle": "italic",
+    }
     logic_tree.add_connection(
         logic_tree.boxes["Total Sample Occurence"],
         logic_tree.boxes["Missing"],
         arrow_head=True,
-        arrow_width=arr_width,
+        shaft_width=arr_width,
         fill_connection=True,
         tip_offset=0.8,
         lw=1.2,
@@ -204,55 +221,58 @@ def make_tree():
         logic_tree.boxes["Over Replicate"],
         logic_tree.boxes["Under Replicate"],
         arrow_head=True,
-        arrow_width=arr_width,
+        shaft_width=arr_width,
         fill_connection=True,
-        fc_A="ec",
-        ec_B="xkcd:off white",
-        fc_B="ec",
         lw=1.3,
         tip_offset=tip_offset,
+        textLeft="Kept",
+        textRight="Removed",
+        text_kwargs=arrow_text_style,
     )
     logic_tree.add_connection_biSplit(
         logic_tree.boxes["Over Replicate"],
         logic_tree.boxes["Under CV"],
         logic_tree.boxes["Over CV"],
         arrow_head=True,
-        arrow_width=arr_width,
+        shaft_width=arr_width,
         fill_connection=True,
-        fc_A="ec",
-        ec_B="xkcd:off white",
-        fc_B="ec",
         lw=1.3,
         tip_offset=tip_offset,
+        textRight="CV Flag",
+        text_kwargs=arrow_text_style,
+        butt_offset=butt_offset,
     )
     logic_tree.add_connection_biSplit(
         logic_tree.boxes["Under CV"],
         logic_tree.boxes["Under CV, Over MDL"],
         logic_tree.boxes["Under CV, Under MDL"],
         arrow_head=True,
-        arrow_width=arr_width,
+        shaft_width=arr_width,
         fill_connection=True,
-        fc_A="ec",
-        ec_B="xkcd:off white",
-        fc_B="ec",
         lw=1.3,
         tip_offset=tip_offset,
+        textRight="MDL Flag",
+        text_kwargs=arrow_text_style,
+        butt_offset=butt_offset,
     )
     logic_tree.add_connection_biSplit(
         logic_tree.boxes["Over CV"],
         logic_tree.boxes["Over CV, Over MDL"],
         logic_tree.boxes["Over CV, Under MDL"],
         arrow_head=True,
-        arrow_width=arr_width,
+        shaft_width=arr_width,
         fill_connection=True,
         lw=1.3,
         tip_offset=tip_offset,
+        textRight="MDL Flag",
+        text_kwargs=arrow_text_style,
+        butt_offset=butt_offset,
     )
 
     # Add annotation boxes for thresholds
     annotation_font = {
         "fontsize": 16,
-        "color": "white",
+        "color": "black",
     }  # you could adjust 'fontname' here too!
     y_row1_5 = (y_row1 + y_row2) / 2
     y_row2_5 = (y_row2 + y_row3) / 2
@@ -306,82 +326,11 @@ def make_tree():
         angle=20,
     )
 
-    # Add kept/removed/flag text annotations
-    logic_tree.add_box(
-        xpos=27,
-        ypos=y_row1_5 + arr_width * 0.85,
-        text=r"\textit{\textbf{Kept}}",
-        box_name="Kept",
-        bbox_fc=(1, 1, 1, 0),
-        bbox_ec=(1, 1, 1, 0),
-        ha="right",
-        va="bottom",
-        bbox_style=BoxStyle("Square", pad=0.1),
-        font_dict=annotation_font,
-        use_tex_rendering=True,
-        fs=12,
-    )
-    logic_tree.add_box(
-        xpos=65,
-        ypos=y_row1_5 + arr_width * 0.85,
-        text=r"\textit{\textbf{Removed}}",
-        box_name="Removed",
-        bbox_fc=(1, 1, 1, 0),
-        bbox_ec=(1, 1, 1, 0),
-        ha="center",
-        va="bottom",
-        bbox_style=BoxStyle("Square", pad=0.1),
-        font_dict=annotation_font,
-        use_tex_rendering=True,
-        fs=12,
-    )
-    logic_tree.add_box(
-        xpos=56,
-        ypos=y_row2_5 + arr_width * 0.85,
-        text=r"\textit{\textbf{CV Flag}}",
-        box_name="CV Flag",
-        bbox_fc=(1, 1, 1, 0),
-        bbox_ec=(1, 1, 1, 0),
-        ha="center",
-        va="bottom",
-        bbox_style=BoxStyle("Square", pad=0.1),
-        font_dict=annotation_font,
-        use_tex_rendering=True,
-        fs=12,
-    )
-    logic_tree.add_box(
-        xpos=-9,
-        ypos=y_row3_5 + arr_width * 0.85,
-        text=r"\textit{\textbf{MDL Flag}}",
-        box_name="MDL Flag Left",
-        bbox_fc=(1, 1, 1, 0),
-        bbox_ec=(1, 1, 1, 0),
-        ha="left",
-        va="bottom",
-        bbox_style=BoxStyle("Square", pad=0.1),
-        font_dict=annotation_font,
-        use_tex_rendering=True,
-        fs=12,
-    )
-    logic_tree.add_box(
-        xpos=105,
-        ypos=y_row3_5 + arr_width * 0.85,
-        text=r"\textit{\textbf{MDL Flag}}",
-        box_name="MDL Flag Right",
-        bbox_fc=(1, 1, 1, 0),
-        bbox_ec=(1, 1, 1, 0),
-        ha="left",
-        va="bottom",
-        bbox_style=BoxStyle("Square", pad=0.1),
-        font_dict=annotation_font,
-        use_tex_rendering=True,
-        fs=12,
-    )
-
     # Add title and save
     logic_tree.make_title(pos="left")
     logic_tree.save_as_png(
-        file_name=Path(__file__).resolve().parent / "DecisionTree_NTA-Example.png",
+        file_name=Path(__file__).resolve().parent.parent
+        / "resources/logictree_examples/DecisionTree_NTA-Example.png",
         dpi=900,
         content_padding=0.25,
     )

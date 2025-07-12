@@ -9,3 +9,7 @@ docs/_build/
 .coverage
 tests/__pycache__
 examples/test.py
+htmlcov/
+examples/decisionTreeNTAExample-Dark.py
+examples/example_arrows_with_matplotlib.py
+resources/arrow_examples/example_with_matplotlib.png

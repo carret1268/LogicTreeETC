@@ -1,195 +1,274 @@
 # LogicTreeETC
 
-[![Documentation Status](https://readthedocs.org/projects/logictreeetc/badge/?version=latest)](https://logictreeetc.readthedocs.io/en/latest/?badge=latest)
-[![codecov](https://codecov.io/gh/carret1268/logictreeetc/branch/main/graph/badge.svg)](https://codecov.io/gh/carret1268/logictreeetc)
+[![Documentation Status](https://readthedocs.org/projects/logictreeetc/badge/?version=latest)](https://logictreeetc.readthedocs.io/en/latest/)
+[![PyPI](https://img.shields.io/pypi/v/logictreeetc.svg)](https://pypi.org/project/logictreeetc/)
+[![codecov](https://codecov.io/gh/carret1268/LogicTreeETC/branch/main/graph/badge.svg)](https://codecov.io/gh/carret1268/LogicTreeETC)
+[![CI](https://github.com/carret1268/LogicTreeETC/actions/workflows/ci.yml/badge.svg)](https://github.com/carret1268/LogicTreeETC/actions/workflows/ci.yml)
 
-**Create flexible, publication-quality logic tree diagrams and multi-segment arrows with full vertex control in Python.**
+**Flexible, publication-ready logic trees, arrow connectors, and annotated diagrams - all in Python.**
 
-📖 **[Read the Docs: Full Documentation](https://logictreeetc.readthedocs.io/en/latest/)**
+---
+
+## Overview
+
+`LogicTreeETC` is a Python package built on `matplotlib` for creating structured visual diagrams using logic boxes, stylized multi-segment arrows, and feature-detected anchors from underlying images via OpenCV. It enables clean, programmatic layouts for flowcharts, decision trees, image annotations, and more.
+
+The package includes:
+
+- `LogicTree`: A canvas manager for diagram elements and titles  
+- `ArrowETC`: A highly customizable arrow-drawing engine with explicit path control  
+- `VectorDetector`: A utility for detecting and labeling image vertices using OpenCV  
+
+Together, these tools help you build annotated, reusable diagrams for scientific or analytical workflows.
 
 ---
 
 ## Installation
 
-You can install the latest version from PyPI with:
+Install from PyPI:
 
 ```bash
 pip install logictreeetc
 ```
 
-Or upgrade existing installation with:
+Upgrade to the latest version:
 
 ```bash
 pip install --upgrade logictreeetc
 ```
 
----
+Then import the tools:
 
-## Why use LogicTreeETC?
-
-Matplotlib's built-in `FancyArrow` and `FancyArrowPatch` only support single straight or curved arrows without exposing vertex information. That means:
-- You can’t create arrows with multiple segments or right-angle bends.
-- You have no access to arrow vertices for debugging or integration.
-- You’re stuck with fixed styling options.
-
-**LogicTreeETC fixes this by:**
-
-✅ Letting you build multi-segment arrows with arbitrary paths.  
-✅ Storing all vertex positions in class attributes so you can reuse or debug them.  
-✅ Giving you control over the width, head, color, and path of every arrow.  
-✅ Integrating tightly with logic boxes for decision trees or flowcharts.
+```python
+from logictree import ArrowETC, LogicTree, VectorDetector
+```
 
 ---
 
-## Note
+## Why Use LogicTreeETC?
 
-The `ArrowETC` class **assumes an equal aspect ratio** (i.e., 1:1 x/y scaling). If you plot with a non-square aspect ratio, the arrow will appear distorted since vertex coordinates assume equal scaling.
+Matplotlib's default arrows are inflexible and opaque. LogicTreeETC is designed for users who need:
 
-**To avoid this:**
+- Explicit vertex control of arrows  
+- Clean logic box layouts with flexible styling  
+- Integration with images for analytical or anatomical diagrams  
+- Full access to metadata (segment angles, vertices, offsets) for debugging or alignment  
 
-1. Always set `ax.set_aspect('equal')` on your own matplotlib axes.
-2. Or manually adjust vertex coordinates to compensate for uneven scaling.
+### Highlights
+
+- **Precise geometry control**  
+  Define the explicit path of your arrow in data coordinates, whether straight, segmented, or curved. Access arrow metadata (e.g., the coordinates of every vertex, the angles each line segment makes with the positive x-axis, etc) without having to manually convert between pixel and data spaces like when using matplotlib's `FancyArrow` and `FancyArrowPatch`.
+
+- **Seamless box-arrow integration**  
+  Attach arrows to any edge or corner of a `LogicBox` using `sideA`, `sideB`, and pixel offsets.
+
+- **Bezier curves and elbow routing**  
+  Use preset or custom Bezier styles for natural curves, or route segmented arrows around obstacles and between misaligned elements.
+
+- **Built-in image feature detection**  
+  Use `VectorDetector` to automatically locate keypoints in diagrams and images, then label and link them programmatically.
+
+- **Pixel-perfect arrow widths**  
+  All arrow geometry is computed in pixel space, ensuring consistent widths regardless of axis scale or skew.
+
+- **LaTeX + publication-ready styles**  
+  Full support for LaTeX typesetting, true-to-theme dark mode, and high-DPI figure export without extra configuration.
+
+- **Modular and extensible**  
+  Each component (logic tree, arrows, feature detection) is usable independently or together - no lock-in or boilerplate. 
+
+
+---
+
+## Coordinate Scaling Notice
+
+The `ArrowETC` class requires the final aspect ratio of your `matplotlib.axes.Axes` object to compute arrow geometry correctly. Always call `set_xlim()` and `set_ylim()` before drawing arrows. Otherwise, the rendered arrows may appear skewed.
 
 ---
 
 ## Examples
 
-### Example 1: Decision Tree for Non-Targeted Analysis (NTA)
+### Decision Tree for Analytical Filtering
 
-Creates a logic tree showing how samples progress through replicate, CV, and MDL checks, including:
-- Reading counts from a CSV
-- Adding boxes for decisions
-- Annotating thresholds with LaTeX
-- Connecting boxes with arrows and bifurcations
+A logic tree representing filtering steps in a dummy non-targeted analysis dataset.
 
-<p align="center">
-  <img src="examples/DecisionTree_NTA-Example.png" alt="Decision Tree for NTA" width="600"/>
-</p>
+<div align="center">
+    <img src="resources/logictree_examples/DecisionTree_NTA-Example.png" width="500"/>
+</div>
 
-See [examples/decisionTreeNTAExample.py](examples/decisionTreeNTAExample.py) for full code.
+Code: `examples/decision_tree-NTA-Example.py`
 
----
+Features:
 
-### Example 2: Suggested Study Order for Data Structures & Algorithms (DSA)
-
-Shows a recommended sequence for learning key data structures, from arrays to graphs, with arrows indicating the progression.
-
-<p align="center">
-  <img src="examples/DecisionTree_DSA-Example.png" alt="DSA Study Order" width="600"/>
-</p>
-
-See [examples/decisionTreeDSAExample.py](examples/decisionTreeDSAExample.py) for full code.
+- Custom box styling and LaTeX text  
+- Straight and bifurcating arrows with labeled branches  
+- Optional text rotation  
 
 ---
 
-### Example 3: Standalone Arrows with ArrowETC
+### Annotated Nephron Diagram with Auto-Detected Features
 
-You can use `ArrowETC` by itself to build complex, multi-segment arrows or straight rectangular connectors. Arrows don’t have to include arrowheads—they can simply define a series of segments with consistent width:
+This example combines a background image, automatic feature detection, and curved arrows.
 
-```python
-from logictree.ArrowETC import ArrowETC
+<div align="center">
+    <img src="resources/logictree_examples/anatomical_diagram-nephron-Example.png" width="500"/>
+</div>
 
-arrow = ArrowETC([(0, 0), (-10, 0), (-10, -10)], 2, True)
-arrow.save_arrow(name="./single_joint_arrow.png")
+Code: `examples/anatomical_diagram-nephron-Example.py`
+
+Features:
+
+- Automatic vertex detection via `VectorDetector`
+
+<div align="center">
+    <img src="resources/vector_detector_results_from_nephron_example/nephron-verts_auto_detected-Example.png" width="400"/>
+</div>
+
+- User-labeled vertices for later access
+
+<div align="center">
+    <img src="resources/vector_detector_results_from_nephron_example/nephron-labeled_verts_auto_detected-Example.png" width="400"/>
+</div>
+
+- Curved arrows with fine-tuned styling and proportional arrowheads
+
+---
+
+### Normalized Blackbody Spectrum
+
+Demonstrates the normalized blackbody spectrum at 5 temperatures, highlighting Wien's law and the ultraviolet catastrophe.
+
+<div align="center">
+    <img src="resources/logictree_examples/normalized_blackbody_spectrum-Example.png" width="600"/>
+</div>
+
+Features:
+
+- Compatible with scientific plots  
+- Arrow rendering is robust to skewed aspect ratios  
+- Optional heads at both ends of arrows  
+- Preset styles like `colormode="dark"` save time  
+
+---
+
+### Pedagogy: Showing the Product Rule
+
+Illustrates term-by-term application of the product rule in differentiation.
+
+<div align="center">
+    <img src="resources/logictree_examples/information_flow-Calculus-Example.png" width="600"/>
+</div>
+
+Code: `examples/information_flow-calculus-Example.py`
+
+Features:
+
+- Explicit font color control  
+- Multi-segment arrows with arbitrary angles  
+
+---
+
+### Custom Arrows with ArrowETC
+
+See `examples/example_arrows.py` for all examples below.
+
+#### Basic arrow with head
+
+<div align="center">
+  <img src="resources/arrow_examples/basic_arrow_with_head.png" width="400"/>
+</div>
+
+#### Multi-segment arrow with head
+
+<div align="center">
+  <img src="resources/arrow_examples/multi_segment_arrow_with_head.png" width="500"/>
+</div>
+
+#### Obtuse angle arrow
+
+<div align="center">
+  <img src="resources/arrow_examples/obtuse_arrow_with_head.png" width="500"/>
+</div>
+
+#### Acute angle arrow
+
+<div align="center">
+  <img src="resources/arrow_examples/acute_arrow_with_head.png"/>
+</div>
+
+#### Complex multi-segmented arrow
+
+<div align="center">
+  <img src="resources/arrow_examples/many_segments_with_head.png"/>
+</div>
+
+#### Basic Bezier arrow
+
+<div align="center">
+  <img src="resources/arrow_examples/basic_bezier_with_head.png"/>
+</div>
+
+#### Complex Bezier arrow
+
+<div align="center">
+  <img src="resources/arrow_examples/crazier_bezier_with_head.png"/>
+</div>
+
+---
+
+## Font Installation (Times New Roman)
+
+If Times New Roman is missing from your system, install it manually:
+
+```bash
+# Linux
+mkdir -p ~/.local/share/fonts
+cp logictree/fonts/Times\ New\ Roman.ttf ~/.local/share/fonts/
+fc-cache -fv
 ```
 
+On Windows or macOS, open:
 
-## Check and Install Fonts
-
-This project uses the **Times New Roman** font by default.
-
-To check if the font is already installed, call the `check_for_font("Times New Roman")` function in `./examples/decisionTreeExample.py`.  
-- If it prints a file path, the font is installed.  
-- If it prints “Times New Roman not found,” you’ll need to install it manually.
-
-The font file is included with the project at:  
 ```
-"logictree/fonts/Times New Roman.ttf"
+logictree/fonts/Times New Roman.ttf
 ```
 
----
+Then click **Install**.
 
-### 🪟 Windows
-- Double-click `"Times New Roman.ttf"` to open the font preview window.
-- Click **Install** to add the font to your system.
+To verify installation:
 
----
-
-### 🍏 macOS
-- Double-click `"Times New Roman.ttf"` to open it in **Font Book**.
-- Click **Install Font** to install it system-wide.
-
-**Optional verification:**  
-You can check with `fc-list` if you have the `fontconfig` tools installed:
 ```bash
 fc-list | grep -i times
 ```
-If you don’t have `fc-list`, you can install it with Homebrew:
-```bash
-brew install fontconfig
-```
 
----
+If matplotlib cannot find the font:
 
-### 🐧 Linux (Debian/Ubuntu/WSL)
-- Copy the font file to your local fonts directory and update the font cache:
-  ```bash
-  mkdir -p ~/.local/share/fonts
-  cp logictree/fonts/Leelawadee.ttf ~/.local/share/fonts/
-  fc-cache -fv
-  ```
-- Confirm installation:
-  ```bash
-  fc-list | grep -i times
-  ```
-
----
-
-**Note:**  
-After installing the font, you may need to restart applications or your graphical environment for the font to be recognized.
-
-If you still see an error like `findfont: Font family 'Times New Roman' not found.`, you might need to refresh your matplotlib cache. Try running
 ```bash
 rm -rf ~/.cache/matplotlib
 ```
 
-## Optional: LaTeX Support for Matplotlib
-
-This package **does not require LaTeX** to function. However, if you enable LaTeX text rendering in `matplotlib` (e.g., by setting `plt.rc('text', usetex=True)` or by calling `LogicTreeETC.add_box()` method with `use_tex_rendering=True`), you must have a LaTeX installation available on your system.
-
-Without LaTeX installed, trying to use tex rendering will cause errors like:
-```
-RuntimeError: Failed to process string with tex because latex could not be found
-```
-
 ---
 
-### 🪟 Windows
-- Download and install [MiKTeX](https://miktex.org/download) (recommended for Windows).  
-- During installation, choose the option to install missing packages on-the-fly if prompted.  
-- After installation, restart your terminal or IDE to make sure the `latex` command is in your system PATH.
+## LaTeX Rendering (Optional)
 
----
+Enable LaTeX rendering with `use_tex_rendering=True` when calling `LogicTree.add_box()`.
 
-### 🍏 macOS
-- Install MacTeX, the standard TeX distribution for macOS, from the [MacTeX website](https://tug.org/mactex/).  
-- The download is large (~4GB), but it provides everything you need for LaTeX rendering.  
-- After installing, you may need to restart your terminal or IDE for changes to take effect.
+### Windows
 
----
+- Install [MiKTeX](https://miktex.org/download)
 
-### 🐧 Linux (Debian/Ubuntu/WSL)
-Install a minimal LaTeX environment with:
+### macOS
+
+- Install [MacTeX](https://tug.org/mactex/)
+
+### Linux
+
 ```bash
-sudo apt update
 sudo apt install texlive-latex-base texlive-fonts-recommended texlive-fonts-extra texlive-latex-extra dvipng
 ```
 
 ---
 
-**Note:**  
-If you don’t plan to use LaTeX rendering in your plots, you can safely ignore these installation steps — LaTeX is not required to use the core functionality of this package.
-
 ## License
 
-This project is licensed under a CC0 License. See LICENSE file for details.
+This project is licensed under CC0 (public domain). See the `LICENSE` file for details.

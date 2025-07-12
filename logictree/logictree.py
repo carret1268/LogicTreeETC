@@ -1,99 +1,123 @@
 """
-This module defines the LogicTree class, which helps create logic tree diagrams
-using LogicBox and ArrowETC objects. LogicTree manages adding labeled boxes,
-connecting them with multi-segmented arrows, and rendering the final figure
-with matplotlib. LaTeX rendering is supported for advanced text formatting.
+LogicTree - A Flow Diagram Engine for Visual Logic Structures
+
+This module defines the `LogicTree` class, which provides a high-level interface for creating
+logic tree diagrams using `LogicBox` and `ArrowETC` objects. It supports fast creation of labeled
+boxes, styled arrow connections (including Bezier curves and segmented paths), and LaTeX-enhanced
+text rendering. Diagrams are rendered with `matplotlib`, and the resulting figures can be saved
+as high-resolution images.
+
+Features
+--------
+- Add boxes with custom text, alignment, rotation, and visual styling.
+- Connect boxes using straight, segmented, or curved arrows with optional arrowheads.
+- Full support for LaTeX rendering inside boxes and titles.
+- Export to PNG with tight layout control and adjustable aspect ratio.
 
 Examples
 --------
-Here's a minimal example of how to build a logic tree diagram:
-
 >>> from logictree.LogicTreeETC import LogicTree
 >>> logic_tree = LogicTree(xlims=(0, 100), ylims=(0, 100), title="My Logic Tree")
 
-# Add some boxes
+# Add boxes
+>>> logic_tree.add_box(20, 80, "Start", "Start", "black", "white", ha="center")
+>>> logic_tree.add_box(20, 50, "Decision", "Decision", "black", "white", ha="center")
+>>> logic_tree.add_box(10, 20, "Option A", "OptionA", "black", "green", ha="center")
+>>> logic_tree.add_box(30, 20, "Option B", "OptionB", "black", "red", ha="center")
 
->>> logic_tree.add_box(xpos=20, ypos=80, text="Start", box_name="Start", bbox_fc="black", bbox_ec="white", ha="center")
->>> logic_tree.add_box(xpos=20, ypos=50, text="Decision", box_name="Decision", bbox_fc="black", bbox_ec="white", ha="center")
->>> logic_tree.add_box(xpos=10, ypos=20, text="Option A", box_name="OptionA", bbox_fc="black", bbox_ec="green", ha="center")
->>> logic_tree.add_box(xpos=30, ypos=20, text="Option B", box_name="OptionB", bbox_fc="black", bbox_ec="red", ha="center")
+# Add arrows
+>>> logic_tree.add_connection(
+...     logic_tree.boxes["Start"], logic_tree.boxes["Decision"], arrow_head=True, shaft_width=25
+... )
+>>> logic_tree.add_connection_biSplit(
+...     logic_tree.boxes["Decision"],
+...     logic_tree.boxes["OptionA"],
+...     logic_tree.boxes["OptionB"],
+...     arrow_head=True, shaft_width=30
+... )
 
-# Connect boxes
-
->>> logic_tree.add_connection(boxA=logic_tree.boxes["Start"], boxB=logic_tree.boxes["Decision"], arrow_head=True, arrow_width=2)
->>> logic_tree.add_connection_biSplit(boxA=logic_tree.boxes["Decision"], boxB=logic_tree.boxes["OptionA"], boxC=logic_tree.boxes["OptionB"], arrow_head=True, arrow_width=2)
-
-# Add a title and save
-
+# Finalize and save
 >>> logic_tree.make_title(pos="center")
 >>> logic_tree.save_as_png("logic_tree_example.png", dpi=300)
 
 Notes
 -----
-- If LaTeX rendering is enabled, packages such as bm, amsmath, soul, and relsize must be installed.
+- If LaTeX rendering is enabled, you must have packages such as `bm`, `amsmath`, `soul`, and `relsize` installed.
+  On most Linux systems, these can be installed using:
+
+  sudo apt install -y texlive-latex-base texlive-latex-recommended texlive-fonts-recommended \\
+      texlive-latex-extra texlive-humanities dvipng cm-super
 """
 
-from typing import Any, Dict, List, Literal, Optional, Tuple, Union
+from typing import Any, Dict, List, Literal, Optional, Tuple, Union, cast
 
 from math import atan2, degrees
 from matplotlib.patches import BoxStyle
 import matplotlib.pyplot as plt
 from numpy import hypot
 
-from arrowetc import ArrowETC
-from .LogicBoxETC import LogicBox
+from .arrow_etc import ArrowETC
+from .logicbox import LogicBox
 
 
 class LogicTree:
     """
-    Build logic tree diagrams by placing LogicBox objects and connecting them with ArrowETC arrows.
+    LogicTree - High-Level Diagram Layout Engine for Visualizing Logic Structures
 
-    LogicTree allows you to:
-    - Add labeled boxes using `add_box()`
-    - Connect boxes with straight or segmented arrows using `add_connection()` or `add_connection_biSplit()`
-    - Style your logic tree with fonts, colors, figure titles, and LaTeX-rendered text.
+    The `LogicTree` class provides a complete system for building logic diagrams by placing labeled boxes
+    (`LogicBox` objects) and connecting them with highly customizable arrows (`ArrowETC` objects).
+    It abstracts away most of the layout, rendering, and styling logic, while remaining fully
+    compatible with the `matplotlib` workflow.
+
+    Key features include:
+    - Flexible arrow routing (straight, segmented, or curved paths)
+    - Optional arrowhead placement and geometry control
+    - Box labeling with alignment, LaTeX rendering, and font customization
+    - Tight integration with `matplotlib` for exporting high-resolution plots
 
     Parameters
     ----------
     fig_size : tuple of float, optional
-        Size of the matplotlib figure (width, height). Default is (9, 9).
+        Size of the output matplotlib figure in inches (width, height). Default is (9, 9).
     xlims : tuple of float, optional
-        Min and max x-axis limits. Default is (0, 100).
+        Min and max limits of the x-axis. Used to constrain box layout. Default is (0, 100).
     ylims : tuple of float, optional
-        Min and max y-axis limits. Default is (0, 100).
-    fig_fc : str, optional
-        Background color of the figure. Default is 'black'.
+        Min and max limits of the y-axis. Default is (0, 100).
+    colormode : {'dark', 'light'}, optional
+        Sets default font and figure background colors. Default is 'light'.
     title : str, optional
-        Title to display on the figure. Can be updated later with `make_title()`.
+        Title of the logic diagram. Can also be set later using `make_title()`.
     font_dict : dict, optional
-        Font settings for general text in boxes. If None, a default font dict is used.
+        Dictionary of font properties to use for box text. If None, a default style is used.
     font_dict_title : dict, optional
-        Font settings for the figure title. If None, a default font dict is used.
+        Dictionary of font properties to use for the figure title. If None, a default style is used.
     text_color : str, optional
-        Override for font color in boxes.
+        Override for all box text color (applies to `font_dict` if provided).
     title_color : str, optional
-        Override for font color of the figure title.
+        Override for the title color (applies to `font_dict_title` if provided).
 
     Attributes
     ----------
     fig : matplotlib.figure.Figure
-        The matplotlib figure instance.
+        The main matplotlib figure object.
     ax : matplotlib.axes.Axes
-        The main matplotlib axes for drawing.
-    boxes : dict
-        Dictionary storing LogicBox objects keyed by their `box_name`.
+        The axes object where boxes and arrows are drawn.
+    boxes : dict[str, LogicBox]
+        Dictionary of box name → LogicBox instances. Populated via `add_box()`.
     arrows : list[ArrowETC]
-        List storing all ArrowETC objects.
-    title : str
-        The figure's title.
+        List of all ArrowETC arrows added to the figure.
+    title : str or None
+        Title string used for rendering the figure heading.
     xlims, ylims : tuple of float
-        Axis limits used for positioning and layout.
+        Axis limits, controlling visual boundaries.
     font_dict : dict
-        Default font settings for text in boxes.
-    title_font : dict
-        Font settings for the figure title.
-    latex_ul_depth, latex_ul_width : str
-        Settings for LaTeX underlining (depth and width).
+        Default font properties for box text.
+    title_font_dict : dict
+        Font properties used when rendering the diagram title.
+    latex_ul_depth : str
+        Thickness setting used when underlining LaTeX-rendered box text.
+    latex_ul_width : str
+        Depth setting used when underlining LaTeX-rendered box text.
     """
 
     def __init__(
@@ -101,7 +125,7 @@ class LogicTree:
         fig_size: Tuple[float, float] = (9, 9),
         xlims: Tuple[float, float] = (0, 100),
         ylims: Tuple[float, float] = (0, 100),
-        fig_fc: str = "black",
+        colormode: Literal["dark", "light"] = "light",
         title: Optional[str] = None,
         font_dict: Optional[Dict[str, Any]] = None,
         font_dict_title: Optional[Dict[str, Any]] = None,
@@ -114,39 +138,67 @@ class LogicTree:
         self.xlims = xlims
         self.ylims = ylims
 
-        # Font dictionary for title
+        # font dictionary for title
         if font_dict_title is None:
-            font_dict_title = dict(
-                fontname="Times New Roman", fontsize=34, color="white"
-            )
+            font_dict_title = {
+                "fontname": "Times New Roman",
+                "fontsize": 34,
+                "color": "white" if colormode == "dark" else "black",
+            }
         if title_color is not None:
             font_dict_title["color"] = title_color
-        self.title_font = font_dict_title
+        self.title_font_dict = font_dict_title
 
-        # Default font dictionary for boxes
+        # default font dictionary for boxes
         if font_dict is None:
             font_dict = {
                 "fontname": "Times New Roman",
                 "fontsize": 15,
-                "color": "white",
+                "color": "white" if colormode == "dark" else "black",
             }
         if text_color is not None:
             font_dict["color"] = text_color
         self.font_dict = font_dict
 
-        # Underlining options for LaTeX rendering
+        # underlining options for LaTeX rendering
         self.latex_ul_depth = "1pt"
         self.latex_ul_width = "1pt"
 
-        # Generate figure and axes
-        fig, ax = plt.subplots(figsize=fig_size, frameon=True, facecolor=fig_fc)
+        # set style presets
+        font_defaults = {
+            "font.family": "Times New Roman",
+            "font.size": 14,
+            "axes.titlesize": 16,
+            "axes.titleweight": "bold",
+            "axes.titlecolor": "white" if colormode == "dark" else "black",
+            "axes.labelsize": 20,
+            "axes.labelcolor": "white" if colormode == "dark" else "black",
+            "axes.facecolor": "black" if colormode == "dark" else "white",
+            "figure.facecolor": "black" if colormode == "dark" else "white",
+            "xtick.color": "white" if colormode == "dark" else "black",
+            "ytick.color": "white" if colormode == "dark" else "black",
+            "legend.fontsize": 14,
+            "legend.title_fontsize": 16,
+        }
+
+        plt.rcParams.update(font_defaults)
+
+        # generate figure and axes
+        fig, ax = plt.subplots(figsize=fig_size, frameon=True)
         ax.set_xlim(xlims[0], xlims[1])
         ax.set_ylim(ylims[0], ylims[1])
         ax.axis("off")
+
+        if colormode == "dark":
+            for spine in ax.spines.values():
+                spine.set_color("white")
+
         fig.canvas.draw_idle()
 
         self.fig = fig
         self.ax = ax
+
+        self._colormode = colormode
 
     def _get_pathsForBi_left_then_right(
         self,
@@ -157,30 +209,35 @@ class LogicTree:
         tip_offset: float,
     ) -> Tuple[List[Tuple[float, float]], List[Tuple[float, float]]]:
         """
-        Generate the paths for a bifurcating connection with left and right branches.
+        Construct bifurcated arrow paths from a common stem point to left and right child boxes.
 
-        Used internally by `add_connection_biSplit()` to compute the two three-segment paths
-        from a common parent point to two child boxes.
+        This helper method is used internally by `add_connection_biSplit()` to generate
+        two separate arrow paths branching from a shared vertical stem, typically used for
+        decision or fork structures.
+
+        The method computes elbow-style paths (three points) for each child box:
+        vertical -> horizontal -> vertical.
 
         Parameters
         ----------
         Ax2, Ay2 : float
-            Starting point of the split (usually end of vertical line from boxA).
+            The (x, y) coordinates where the vertical stem ends and the bifurcation begins.
         left_box, right_box : LogicBox
-            Boxes to connect left and right paths to. left_box must be left of right_box.
+            The target boxes for the left and right branches. `left_box` must be horizontally
+            to the left of `right_box`.
         tip_offset : float
-            Vertical offset for the arrow tips.
+            Vertical offset to apply to the final point of each branch. Helps prevent overlap
+            with box edges.
 
         Returns
         -------
-        tuple of list of tuple
-            Paths for the left and right connections, each a list of (x, y) points.
+        tuple of list of (float, float)
+            Two paths (left and right), each a list of three (x, y) points defining an arrow route.
 
         Raises
         ------
         ValueError
-            If `yTop`, `yBottom`, xCenter or `yCenter` are None because the layout has
-            not yet been initialized. This is for either left_box or right_box.
+            If any required coordinates in `left_box` or `right_box` are not initialized.
         """
         if (
             left_box.yTop is None
@@ -253,54 +310,56 @@ class LogicTree:
         angle: float = 0.0,
     ) -> LogicBox:
         """
-        Add a LogicBox to the LogicTree with specified text and styling.
+        Add a styled LogicBox to the diagram at the specified position.
+
+        This method places a new labeled box on the logic tree, using customizable
+        styling for fonts, alignment, and appearance. Optionally, LaTeX rendering and
+        underlining can be enabled for rich formatting.
 
         Parameters
         ----------
         xpos, ypos : float
-            Coordinates for box placement.
+            Coordinates for box placement in data space.
         text : str
-            Text displayed inside the box. Supports LaTeX if `use_tex_rendering=True`.
+            Text to display inside the box. Can include LaTeX if `use_tex_rendering=True`.
         box_name : str
-            Unique identifier for the LogicBox; used to reference the box in connections.
+            Unique identifier for the box. Used to reference the box in connections.
         bbox_fc, bbox_ec : str
-            Face and edge colors of the box. RGBA tuples allowed for transparency.
+            Face color and edge color of the box. Accepts color names or RGBA values.
         font_dict : dict, optional
-            Font properties. Defaults to LogicTree's font_dict.
+            Dictionary of font properties (e.g., fontname, fontsize, weight).
         text_color : str, optional
-            Override for the text color.
+            Override for the text color (applied to `font_dict`).
         fs : int, optional
             Override for font size.
-        font_weight : str, optional
-            Font weight (e.g., 'normal', 'bold').
+        font_weight : float or str, optional
+            Font weight (e.g., 'bold', 'normal').
         lw : float, optional
-            Line width of the box's edge. Default is 1.6.
-        bbox_style : BoxStyle, optional
-            Matplotlib BoxStyle object for box shape and padding. Default is 'Round'.
-        va : str, optional
-            Vertical alignment: 'top', 'center', or 'bottom'. Default is 'center'.
-        ha : str, optional
-            Horizontal alignment: 'left', 'center', or 'right'. Default is 'right'.
+            Line width of the box outline. Default is 1.6.
+        bbox_style : matplotlib.patches.BoxStyle, optional
+            Shape and padding style for the box. Default is BoxStyle("Round", pad=0.6).
+        va : {'top', 'center', 'bottom'}, optional
+            Vertical alignment of text within the box. Default is 'center'.
+        ha : {'left', 'center', 'right'}, optional
+            Horizontal alignment of text. Default is 'right'.
         use_tex_rendering : bool, optional
-            Enable LaTeX text rendering.
+            If True, enables LaTeX rendering for the box text. Requires proper LaTeX installation.
         ul : bool, optional
-            Underline text if LaTeX rendering is enabled.
+            If True, applies underlining to the box text using LaTeX.
         ul_depth_width : tuple of (float, float), optional
-            Underline depth and width for LaTeX.
+            Tuple specifying LaTeX underline depth and thickness.
         angle : float, optional
-            Angle in degrees to rotate your box. Rotations are about the center of the box.
+            Angle (in degrees) to rotate the box around its center. Default is 0.
 
         Returns
         -------
         LogicBox
-            The new LogicBox object.
+            The constructed and registered LogicBox object.
 
         Raises
         ------
         ValueError
-            If `box_name` is already used.
-        ValueError
-            If the rendered text object has no bounding box patch.
+            If `box_name` is already used or if the rendered text lacks a valid bounding box.
         """
         if box_name in self.boxes:
             raise ValueError(
@@ -367,9 +426,9 @@ class LogicTree:
             if ul_depth_width is not None:
                 text_str = (
                     r"\setul{"
-                    + f"{ul_depth_width[0]}pt"
+                    + f"{ul_depth_width[0]}"
                     + r"}{"
-                    + f"{ul_depth_width[1]}pt"
+                    + f"{ul_depth_width[1]}"
                     + r"}"
                     + text_str
                 )
@@ -415,24 +474,26 @@ class LogicTree:
 
     def add_arrow(self, arrow: ArrowETC, fill_arrow: bool = True) -> None:
         """
-        Add a pre-constructed ArrowETC object to the LogicTree canvas.
+        Add a preconstructed ArrowETC object to the LogicTree figure.
 
-        This method allows advanced users to configure complex arrows externally
-        and then attach them to the logic tree. The arrow is stored for later access
-        and drawn using the existing matplotlib axes.
+        This method allows manual control over arrow creation by letting you construct
+        an `ArrowETC` instance externally and then add it to the tree. Useful for advanced
+        customizations or layout debugging.
+
+        The arrow is appended to `self.arrows` and drawn onto the existing matplotlib Axes.
 
         Parameters
         ----------
         arrow : ArrowETC
-            A ready-to-render ArrowETC object.
+            A fully constructed ArrowETC object with geometry and styling already defined.
         fill_arrow : bool, optional
-            If True, the arrow will be filled with its ArrowETC.fc attribute. If False,
-            there will be no fill. Default is True.
+            Whether to fill the arrow body (`ArrowETC.fc`). If False, only the outline is drawn.
+            Default is True.
 
         Raises
         ------
         ValueError
-            If the ArrowETC object is missing a valid path.
+            If the arrow has fewer than two path points.
         """
         if not arrow.path or len(arrow.path) < 2:
             raise ValueError("ArrowETC must have a path with at least two points.")
@@ -444,55 +505,63 @@ class LogicTree:
         self,
         start: tuple[float, float],
         end: tuple[float, float],
-        arrow_width: float = 0.5,
+        shaft_width: float = 20,
         arrow_head: bool = True,
+        arrow_head_at_tail: bool = False,
+        arrow_head_width_multiplier: float = 2,
+        arrow_head_length_multiplier: float = 1.5,
         tip_offset: float = 0.0,
         butt_offset: float = 0.0,
-        facecolor: str = "black",
-        edgecolor: str = "black",
+        fc: str = "black",
+        ec: str = "black",
         zorder: float = 1.0,
-        linewidth: float = 1.0,
-        linestyle: str = "-",
+        lw: float = 1.0,
+        ls: str = "-",
         fill_arrow: bool = True,
     ) -> None:
         """
-        Add a quick arrow between two points using default ArrowETC settings.
+        Draw a single arrow between two points using ArrowETC.
 
-        This wrapper creates a new ArrowETC object from two coordinates and adds it
-        to the logic tree. Useful for free-floating annotations or diagram embellishment.
+        This low-level method is ideal for freeform annotations, callouts, or diagram embellishments.
+        Arrow geometry is computed between two (x, y) coordinates with optional tip and butt offsets.
 
         Parameters
         ----------
         start : tuple of float
-            (x, y) coordinates for the base of the arrow.
+            (x, y) coordinates for the arrow base (tail).
         end : tuple of float
-            (x, y) coordinates for the tip of the arrow.
-        arrow_width : float, optional
-            Width of the arrow shaft. Default is 0.5.
+            (x, y) coordinates for the arrow tip (head).
+        shaft_width : float, optional
+            Width of the arrow shaft in pixels. Default is 20.
         arrow_head : bool, optional
-            Whether to draw an arrowhead. Default is True.
+            Whether to draw an arrowhead at the tip. Default is True.
+        arrow_head_at_tail : bool, optional
+            Whether to draw a second arrowhead pointing backward from the tail. Default is False.
+        arrow_head_width_multiplier : float, optional
+            Width multiplier for arrowhead relative to shaft. Default is 2.
+        arrow_head_length_multiplier : float, optional
+            Length multiplier for arrowhead relative to shaft width. Default is 1.5.
         tip_offset : float, optional
-            Distance to offset the arrow tip (e.g., to avoid overlap). Default is 0.0.
+            Distance to shorten the arrow tip, to avoid overlapping a target. Default is 0.0.
         butt_offset : float, optional
-            Distance to offset the arrow base. Default is 0.0.
-        facecolor : str, optional
+            Distance to push the arrow base forward, away from its start point. Default is 0.0.
+        fc : str, optional
             Fill color of the arrow. Default is "black".
-        edgecolor : str, optional
-            Outline color of the arrow. Default is "black".
+        ec : str, optional
+            Edge (stroke) color of the arrow. Default is "black".
         zorder : float, optional
-            Drawing layer priority. Default is 1.0.
-        linewidth : float, optional
-            Outline thickness. Default is 1.0.
-        linestyle : str, optional
-            Line style (e.g., "-", "--"). Default is "-".
+            Drawing order for the arrow. Higher values appear on top. Default is 1.0.
+        lw : float, optional
+            Line width for the arrow outline. Default is 1.0.
+        ls : str, optional
+            Line style for the outline (e.g., "-", "--"). Default is "-".
         fill_arrow : bool, optional
-            If True, the arrow will be filled with its ArrowETC.fc attribute. If False,
-            there will be no fill. Default is True.
+            Whether to fill the interior of the arrow. Default is True.
 
         Raises
         ------
         ValueError
-            If start and end points are the same.
+            If the start and end points are identical (zero-length arrow).
         """
         if start == end:
             raise ValueError("Arrow start and end points must differ.")
@@ -511,14 +580,18 @@ class LogicTree:
 
         path = [new_start, new_end]
         arrow = ArrowETC(
+            ax=self.ax,
             path=path,
-            arrow_width=arrow_width,
+            shaft_width=shaft_width,
             arrow_head=arrow_head,
-            fc=facecolor,
-            ec=edgecolor,
+            arrow_head_at_tail=arrow_head_at_tail,
+            arrow_head_width_multiplier=arrow_head_width_multiplier,
+            arrow_head_length_multiplier=arrow_head_length_multiplier,
+            fc=fc,
+            ec=ec,
             zorder=zorder,
-            lw=linewidth,
-            ls=linestyle,
+            lw=lw,
+            ls=ls,
         )
         self.add_arrow(arrow, fill_arrow=fill_arrow)
 
@@ -528,7 +601,7 @@ class LogicTree:
         boxB: LogicBox,
         boxC: LogicBox,
         arrow_head: bool = True,
-        arrow_width: float = 0.5,
+        shaft_width: float = 20,
         fill_connection: bool = True,
         fc_A: Optional[str] = None,
         ec_A: Optional[str] = None,
@@ -546,84 +619,62 @@ class LogicTree:
         text_kwargs: Optional[dict] = None,
     ) -> None:
         """
-        Create a bifurcating arrow connection from a parent LogicBox (`boxA`) to two child boxes (`boxB` and `boxC`),
-        using a stem that splits into two branching segments. Labels can optionally be placed along the left and right
-        arrow branches with customizable position and styling.
+        Draw a bifurcating arrow connection from a parent box (`boxA`) to two child boxes (`boxB`, `boxC`).
 
-        This method automatically infers the orientation of the bifurcation (downward or upward) based on the vertical
-        positions of the input boxes. It also determines the left/right ordering based on horizontal positions. Arrow
-        styling (head, width, fill, color) and label appearance are all configurable.
+        This method creates a split connection: a single vertical shaft from `boxA` that branches
+        into two lateral arrows, one for each child. Labels can optionally be placed along each branch.
+
+        Left/right ordering is automatically inferred based on the horizontal positions of `boxB` and `boxC`.
+        Vertical direction (upward vs. downward) is inferred from the y-position of `boxA` relative to the children.
 
         Parameters
         ----------
         boxA : LogicBox
-            The parent box from which the bifurcation begins. Must be clearly vertically above or below both child boxes.
+            The parent box initiating the bifurcation.
         boxB : LogicBox
-            One of the two child boxes. The method will automatically determine whether this is the left or right branch
-            based on xCenter.
+            One child box. Its left/right role is automatically determined.
         boxC : LogicBox
-            The other child box. Must be on the same vertical side of `boxA` as `boxB`.
+            The other child box.
         arrow_head : bool, optional
-            If True (default), draws arrowheads at the ends of the left and right branches.
-        arrow_width : float, optional
-            Width of the arrows in data units. Default is 0.5.
+            Whether to draw arrowheads on both branches. Default is True.
+        shaft_width : float, optional
+            Width of the arrow shafts in pixels. Default is 20.
         fill_connection : bool, optional
-            Whether to fill the arrows with face color (True by default). If False, only outlines are drawn.
-        fc_A : str, optional
-            Face color of the vertical stem arrow from boxA. If None, defaults to `boxA.face_color`.
-            If "ec", uses `boxA.edge_color`.
-        ec_A : str, optional
-            Edge color of the vertical stem arrow from boxA. If None, defaults to `boxA.edge_color`.
-            If "fc", uses `boxA.face_color`.
-        fc_B : str, optional
-            Face color of the arrow branch toward boxB. If None, defaults to `boxB.face_color`.
-            If "ec", uses `boxB.edge_color`.
-        ec_B : str, optional
-            Edge color of the arrow branch toward boxB. If None, defaults to `boxB.edge_color`.
-            If "fc", uses `boxB.face_color`.
-        fc_C : str, optional
-            Face color of the arrow branch toward boxC. If None, defaults to `boxC.face_color`.
-            If "ec", uses `boxC.edge_color`.
-        ec_C : str, optional
-            Edge color of the arrow branch toward boxC. If None, defaults to `boxC.edge_color`.
-            If "fc", uses `boxC.face_color`.
+            Whether to fill the arrows with color (`fc_*`). Default is True.
+        fc_A, ec_A : str, optional
+            Face and edge colors for the vertical stem from `boxA`. If None, defaults to `boxA`'s colors.
+            Use "ec" or "fc" to inherit from the complementary color.
+        fc_B, ec_B : str, optional
+            Colors for the branch leading to `boxB`. Same logic as above.
+        fc_C, ec_C : str, optional
+            Colors for the branch leading to `boxC`.
         lw : float, optional
-            Line width of the arrow edges. Default is 0.5.
+            Line width for arrow outlines. Default is 0.5.
         butt_offset : float, optional
-            Distance to offset the base of the vertical stem away from the parent boxA. Prevents visual overlap.
-            Default is 0.
+            Distance to nudge the stem away from `boxA`. Default is 0.
         tip_offset : float, optional
-            Distance to offset the tips of the arrows from boxB and boxC. Prevents overlap with box edges.
-            Default is 0.
-        textLeft : str, optional
-            Optional text label to display above or below the arrow leading to the left box. Centered along the shaft.
-        textRight : str, optional
-            Optional text label to display above or below the arrow leading to the right box. Centered along the shaft.
-        textLeftOffset : {'above', 'below'}, optional
-            Whether to place the `textLeft` label above or below the arrow shaft. Default is 'above'.
-        textRightOffset : {'above', 'below'}, optional
-            Whether to place the `textRight` label above or below the arrow shaft. Default is 'above'.
+            Distance to nudge the arrow tips away from the target boxes. Default is 0.
+        textLeft, textRight : str, optional
+            Optional labels placed along the left and right arrow branches.
+        textLeftOffset, textRightOffset : {'above', 'below'}, optional
+            Whether to place the corresponding label above or below its arrow shaft. Default is 'above'.
         text_kwargs : dict, optional
-            Dictionary of matplotlib-compatible text styling options.
-
-            Keys may include:
-
-                - 'fontsize' (int): font size (default: 12)
-                - 'fontname' (str): font family (default: 'sans-serif')
-                - 'color' (str): font color (default: 'white')
+            Additional text styling options for labels, e.g.:
+                - fontsize : int
+                - fontname : str
+                - color : str
+                - fontstyle : str
 
         Raises
         ------
         ValueError
-            If any required coordinates (`xLeft`, `xCenter`, `xRight`, `yTop`, `yCenter`, `yBottom`) of any input box
-            are uninitialized (i.e., None).
-        ValueError
-            If `boxA` is not clearly vertically above or below both `boxB` and `boxC`.
+            If any of the boxes are missing layout attributes.
+            If `boxA` is not clearly above or below both `boxB` and `boxC`.
 
         Notes
         -----
-        This function is intended for use with properly initialized `LogicBox` instances, such as those added via
-        LogicTree's `add_box()` method. It is useful for visualizing binary decision splits in flow diagrams or logic trees.
+        This method is useful for visualizing binary decisions or logical forks in flow diagrams.
+        Each arrow path consists of three segments: vertical stem → horizontal split → vertical drop.
         """
         if (
             boxA.xLeft is None
@@ -665,6 +716,7 @@ class LogicTree:
         fontname = text_kwargs.get("fontname", "sans-serif")
         fontsize = text_kwargs.get("fontsize", 12)
         fontcolor = text_kwargs.get("color", "white")
+        fontstyle = text_kwargs.get("fontstyle", "normal")
 
         def annotate_segment(
             text: Optional[str],
@@ -686,12 +738,10 @@ class LogicTree:
             if not text:
                 return
             (x1, y1), (x2, _) = path[0], path[-1]
-            xm = (x1 + x2) / 2 + (arrow_width / 2 if x1 < x2 else -arrow_width / 2)
-            ym = (
-                y1 + arrow_width * 0.95
-                if offset == "above"
-                else y1 - arrow_width * 0.95
+            xm = (x1 + x2) / 2 + (
+                0.2 * shaft_width / 2 if x1 < x2 else -0.2 * shaft_width / 2
             )
+            ym = y1 + shaft_width * 0.2 if offset == "above" else y1 - shaft_width * 0.2
             va = "bottom" if offset == "above" else "top"
             self.ax.text(
                 xm,
@@ -702,6 +752,7 @@ class LogicTree:
                 fontsize=fontsize,
                 fontname=fontname,
                 color=fontcolor,
+                fontstyle=fontstyle,
             )
 
         def resolve_colors(
@@ -753,11 +804,12 @@ class LogicTree:
         Ax2 = Ax1
         path_vertical = [(Ax1, Ay1), (Ax2, Ay2)]
         arrow = ArrowETC(
+            ax=self.ax,
             path=path_vertical,
             arrow_head=False,
-            arrow_width=arrow_width,
-            ec=ec_A,
-            fc=fc_A,
+            shaft_width=shaft_width,
+            ec=cast(str, ec_A),
+            fc=cast(str, fc_A),
             lw=lw,
         )
         self.add_arrow(arrow)
@@ -773,7 +825,7 @@ class LogicTree:
         def draw_branch(
             path: list[tuple[float, float]],
             ec: str,
-            fc: Optional[str],
+            fc: str,
             lw: float,
             label: Optional[str],
             label_offset: Literal["above", "below"],
@@ -795,13 +847,14 @@ class LogicTree:
                 Vertical position of the text relative to the arrow shaft.
             """
             arrow = ArrowETC(
+                ax=self.ax,
                 path=path,
                 arrow_head=arrow_head,
-                arrow_width=arrow_width,
+                shaft_width=shaft_width,
                 ec=ec,
                 fc=fc,
                 lw=lw,
-                close_butt=False,
+                close_tail=False,
                 zorder=1000,
             )
             self.add_arrow(arrow)
@@ -809,27 +862,72 @@ class LogicTree:
 
         # Draw left
         if left_box is boxB:
-            draw_branch(path_left, ec_B, fc_B, lw, textLeft, textLeftOffset)
-            draw_branch(path_right, ec_C, fc_C, lw, textRight, textRightOffset)
+            draw_branch(
+                path_left,
+                cast(str, ec_B),
+                cast(str, fc_B),
+                lw,
+                textLeft,
+                textLeftOffset,
+            )
+            draw_branch(
+                path_right,
+                cast(str, ec_C),
+                cast(str, fc_C),
+                lw,
+                textRight,
+                textRightOffset,
+            )
         else:
-            draw_branch(path_left, ec_C, fc_C, lw, textLeft, textLeftOffset)
-            draw_branch(path_right, ec_B, fc_B, lw, textRight, textRightOffset)
+            draw_branch(
+                path_left,
+                cast(str, ec_C),
+                cast(str, fc_C),
+                lw,
+                textLeft,
+                textLeftOffset,
+            )
+            draw_branch(
+                path_right,
+                cast(str, ec_B),
+                cast(str, fc_B),
+                lw,
+                textRight,
+                textRightOffset,
+            )
 
     def _get_side_coords(
         self, box: LogicBox, side: str, offset: float = 0.0
     ) -> tuple[float, float]:
         """
-        Return coordinates on a box edge or corner, optionally nudged outward.
+        Get a coordinate on a specific edge or corner of a LogicBox, with optional outward offset.
+
+        This utility method returns a coordinate useful for routing arrows. If `offset` is non-zero,
+        the point is shifted outward in the direction implied by `side`.
 
         Parameters
         ----------
         box : LogicBox
-            The box to extract a coordinate from.
+            The box from which to extract a connection point.
         side : str
-            One of 'left', 'right', 'top', 'bottom', 'center', or a corner like 'topLeft'.
+            The location on the box to target. Must be one of:
+            {'left', 'right', 'top', 'bottom', 'center',
+            'topLeft', 'topRight', 'bottomLeft', 'bottomRight'}.
         offset : float, optional
-            Distance to offset the point outward in the direction of connection.
+            Distance to shift the point outward (away from the box edge). Default is 0.
+
+        Returns
+        -------
+        tuple of float
+            The (x, y) coordinates of the specified point, offset if requested.
+
+        Raises
+        ------
+        ValueError
+            If any box coordinates are missing (i.e., not initialized).
+            If `side` is not a recognized keyword.
         """
+
         if (
             box.xLeft is None
             or box.xCenter is None
@@ -870,7 +968,10 @@ class LogicTree:
         boxB: Union[LogicBox, Tuple[float, float]],
         segmented: bool = False,
         arrow_head: bool = True,
-        arrow_width: float = 0.5,
+        arrow_head_at_tail: bool = False,
+        arrow_head_width_multiplier: float = 2,
+        arrow_head_length_multiplier: float = 1.5,
+        shaft_width: float = 20,
         fill_connection: bool = True,
         butt_offset: float = 0,
         tip_offset: float = 0,
@@ -905,53 +1006,52 @@ class LogicTree:
         ] = None,
     ) -> None:
         """
-        Draw a straight or segmented arrow connection between two LogicBoxes.
+        Draw a straight or elbow-style arrow between two boxes or from a box to a point.
 
-        The arrow can be automatically routed or user-directed by specifying entry and
-        exit sides (edges or corners). Optional offsets ensure that arrows avoid overlap
-        with box borders.
+        This method provides full control over routing, arrowhead style, and shaft offsets.
+        It supports both direct and segmented paths and allows entry/exit points on specific
+        box edges or corners.
 
         Parameters
         ----------
         boxA : LogicBox
-            The source LogicBox from which the arrow originates.
-        boxB : LogicBox | Tuple[float, float]
-            The target LogicBox, or the exact coordinates (x, y) to which the arrow points. If you want
-            padding between the point (or LogicBox edge), update the `tip_offset` parameter.
+            The source box where the arrow begins.
+        boxB : LogicBox or tuple of float
+            The destination - either another LogicBox or a fixed (x, y) coordinate.
         segmented : bool, optional
-            If True, non-aligned boxes will be connected with segmented (elbow) arrows.
-            If False, a direct connection is used. Default is False.
+            If True, draws an elbow-style arrow with horizontal/vertical joints. If False,
+            draws a straight line. Default is False.
         arrow_head : bool, optional
-            Whether to draw an arrowhead pointing at `boxB`. Default is True.
-        arrow_width : float, optional
-            Width of the arrow shaft in data units. Default is 0.5.
+            Whether to include an arrowhead pointing at the destination. Default is True.
+        arrow_head_at_tail : bool, optional
+            Whether to include a second arrowhead pointing backward from the source. Default is False.
+        arrow_head_width_multiplier : float, optional
+            Width multiplier for the arrowhead. Default is 2.
+        arrow_head_length_multiplier : float, optional
+            Length multiplier for the arrowhead. Default is 1.5.
+        shaft_width : float, optional
+            Thickness of the arrow shaft in pixels. Default is 20.
         fill_connection : bool, optional
-            Whether to fill the arrow body with color. Default is True.
+            Whether to fill the arrow polygon with color. Default is True.
         butt_offset : float, optional
-            Distance to offset the starting point of the arrow (away from `boxA`) in the
-            direction of the connection. Default is 0.
+            Offset the arrow's base outward from the source box. Default is 0.
         tip_offset : float, optional
-            Distance to offset the tip of the arrow (away from `boxB`) to avoid overlap.
-            Default is 0.
+            Offset the arrow's tip away from the target. Helps avoid overlap. Default is 0.
         fc : str, optional
-            Fill color of the arrow body. If None, uses `boxB`'s face color. If 'ec', uses `boxB`'s edge color.
+            Fill color for the arrow body. If None, uses the target box's face color.
         ec : str, optional
-            Edge color (outline) of the arrow. If None, uses `boxB`'s edge color. If 'fc', uses face color.
+            Edge (outline) color. If None, uses the target box's edge color.
         lw : float, optional
-            Line width of the arrow outline. Default is 0.7.
-        sideA : {'left', 'topLeft', 'right', 'topRight', 'top', 'bottomRight', 'bottom', 'bottomLeft' 'center'}, optional
-            The side or corner of `boxA` where the arrow starts. Options include:
-            'left', 'right', 'top', 'bottom', 'center', 'topLeft', 'topRight', 'bottomLeft', 'bottomRight'.
-            If not provided, it is inferred automatically based on box positions.
-        sideB : {'left', 'topLeft', 'right', 'topRight', 'top', 'bottomRight', 'bottom', 'bottomLeft' 'center'}, optional
-            The side or corner of `boxB` where the arrow ends. Same options as `sideA`.
+            Line width for the arrow outline. Default is 0.7.
+        sideA : str, optional
+            Edge or corner of `boxA` to start from. If None, inferred based on angle.
+        sideB : str, optional
+            Edge or corner of `boxB` to point to. Ignored if `boxB` is a coordinate.
 
         Raises
         ------
         ValueError
-            If boxA and boxB have the same center position.
-        ValueError
-            If required box coordinates are not initialized.
+            If box coordinates are missing or if the boxes have identical centers.
         """
         if (
             boxA.xLeft is None
@@ -1058,42 +1158,50 @@ class LogicTree:
                 case "bottomRight":
                     end = (end[0] + tip_offset, end[1] - tip_offset)
 
-        if segmented and isinstance(boxB, LogicBox):
-            # need another type check to appease mypy
-            if (
-                boxB.xLeft is None
-                or boxB.xCenter is None
-                or boxB.xRight is None
-                or boxB.yTop is None
-                or boxB.yCenter is None
-                or boxB.yBottom is None
-            ):
-                raise ValueError(
-                    "boxB LogicBox layout is not initialized before accessing coordinates."
-                )
-            if boxA.yCenter == boxB.yCenter:
-                path = [start, end]
-            elif boxA.yCenter < boxB.yCenter:
-                if boxA.xCenter == boxB.xCenter:
-                    path = [start, end]
-                else:
-                    midY = (boxA.yTop + boxB.yBottom) / 2
-                    path = [start, (start[0], midY), (end[0], midY), end]
+        if segmented:
+            if isinstance(boxB, LogicBox):
+                if (
+                    boxB.xLeft is None
+                    or boxB.xCenter is None
+                    or boxB.xRight is None
+                    or boxB.yTop is None
+                    or boxB.yCenter is None
+                    or boxB.yBottom is None
+                ):
+                    raise ValueError(
+                        "boxB LogicBox layout is not initialized before accessing coordinates."
+                    )
+                yA = boxA.yCenter
+                yB = boxB.yCenter
+                xA = boxA.xCenter
+                xB = boxB.xCenter
             else:
-                if boxA.xCenter == boxB.xCenter:
-                    path = [start, end]
-                else:
-                    midY = (boxA.yBottom + boxB.yTop) / 2
-                    path = [start, (start[0], midY), (end[0], midY), end]
+                yA = boxA.yCenter
+                yB = end[1]
+                xA = boxA.xCenter
+                xB = end[0]
+
+            if yA == yB or xA == xB:
+                path = [start, end]
+            elif yA < yB:
+                midY = (boxA.yTop + yB) / 2
+                path = [start, (start[0], midY), (end[0], midY), end]
+            else:
+                midY = (boxA.yBottom + yB) / 2
+                path = [start, (start[0], midY), (end[0], midY), end]
         else:
             path = [start, end]
 
         arrow = ArrowETC(
+            ax=self.ax,
             path=path,
             arrow_head=arrow_head,
-            arrow_width=arrow_width,
-            ec=ec,
-            fc=fc,
+            arrow_head_at_tail=arrow_head_at_tail,
+            arrow_head_width_multiplier=arrow_head_width_multiplier,
+            arrow_head_length_multiplier=arrow_head_length_multiplier,
+            shaft_width=shaft_width,
+            ec=cast(str, ec),
+            fc=cast(str, fc),
             lw=lw,
         )
         self.add_arrow(arrow)
@@ -1105,7 +1213,9 @@ class LogicTree:
         style: Literal["smooth", "elbow", "s-curve"] = "smooth",
         control_points: Optional[list[tuple[float, float]]] = None,
         arrow_head: bool = True,
-        arrow_width: float = 0.5,
+        arrow_head_width_multiplier: float = 2,
+        arrow_head_length_multiplier: float = 1.5,
+        shaft_width: float = 20,
         fill_connection: bool = True,
         fc: Optional[str] = None,
         ec: Optional[str] = None,
@@ -1141,60 +1251,51 @@ class LogicTree:
         n_bezier: int = 600,
     ) -> None:
         """
-        Draw a curved Bezier arrow connection between two LogicBoxes or from a LogicBox to a fixed point.
+        Draw a curved arrow between two boxes or from a box to a coordinate using a smooth Bezier curve.
 
-        The arrow path may be automatically shaped using preset styles or manually customized with control points.
-        You can specify exact exit and entry sides (edges or corners) of the boxes, and apply optional offsets to
-        avoid overlap with box borders.
+        This method builds a flowing, organic connection path ideal for reducing visual clutter in dense
+        diagrams. Curvature is determined automatically using a spline fit through inferred or specified
+        side coordinates.
 
         Parameters
         ----------
         boxA : LogicBox
-            The source LogicBox from which the arrow originates.
-        boxB : LogicBox | Tuple[float, float]
-            The target LogicBox, or the exact coordinates (x, y) to which the arrow points. If you want
-            padding between the point (or LogicBox edge), update the `tip_offset` parameter.
-        style : {'smooth', 'elbow', 's-curve'}, optional
-            If `control_points` is not provided, determines the default Bezier shape:
-            - 'smooth': a gently arced curve perpendicular to the connection line
-            - 'elbow': a right-angle step shape
-            - 's-curve': a symmetric double bend for greater visual separation
-        control_points : list of (float, float), optional
-            Explicit control points for the Bezier curve. Overrides `style` if provided.
+            The source box where the arrow begins.
+        boxB : LogicBox or tuple of float
+            The destination - either another LogicBox or a fixed (x, y) coordinate.
         arrow_head : bool, optional
-            Whether to draw an arrowhead pointing at `boxB`. Default is True.
-        arrow_width : float, optional
-            Width of the arrow shaft in data units. Default is 0.5.
+            Whether to include an arrowhead at the tip. Default is True.
+        arrow_head_at_tail : bool, optional
+            Whether to draw an arrowhead pointing backward from the tail. Default is False.
+        arrow_head_width_multiplier : float, optional
+            Width multiplier for the arrowhead. Default is 2.
+        arrow_head_length_multiplier : float, optional
+            Length multiplier for the arrowhead. Default is 1.5.
+        shaft_width : float, optional
+            Width of the arrow shaft in pixels. Default is 20.
         fill_connection : bool, optional
-            Whether to fill the arrow body with color. Default is True.
+            Whether to fill the arrow polygon. Default is True.
         butt_offset : float, optional
-            Distance to offset the starting point of the arrow (away from `boxA`) in the
-            direction of the connection. Default is 0.
+            Distance to offset the base of the arrow away from the source box. Default is 0.
         tip_offset : float, optional
-            Distance to offset the tip of the arrow (away from `boxB`) to avoid overlap.
-            Default is 0.
+            Distance to offset the arrow tip away from the destination. Useful to avoid overlap. Default is 0.
         fc : str, optional
-            Fill color of the arrow body. If None, uses `boxB`'s face color. If 'ec', uses `boxB`'s edge color.
+            Fill color of the arrow body. If None, inherits from destination box (if applicable).
         ec : str, optional
-            Edge color (outline) of the arrow. If None, uses `boxB`'s edge color. If 'fc', uses face color.
+            Edge color of the arrow outline. If None, inherits from destination box.
         lw : float, optional
-            Line width of the arrow outline. Default is 0.7.
-        sideA : {'left', 'topLeft', 'right', 'topRight', 'top', 'bottomRight', 'bottom', 'bottomLeft', 'center'}, optional
-            The side or corner of `boxA` where the arrow starts. If not provided, inferred automatically.
-        sideB : {'left', 'topLeft', 'right', 'topRight', 'top', 'bottomRight', 'bottom', 'bottomLeft', 'center'}, optional
-            The side or corner of `boxB` where the arrow ends. Ignored if `boxB` is a coordinate.
-        n_bezier : int, optional
-            Number of interpolation points used to render the Bezier curve. Increase if your arrowhead looks distorted.
-            Default is 600.
+            Line width for the arrow outline. Default is 0.7.
+        bezier_n : int, optional
+            Number of points used to sample the Bezier curve. Higher values yield smoother curves. Default is 400.
+        sideA : str, optional
+            Edge or corner of `boxA` to connect from. Default is inferred from angle.
+        sideB : str, optional
+            Edge or corner of `boxB` to connect to. Ignored if `boxB` is a coordinate.
 
         Raises
         ------
         ValueError
-            If boxA and boxB have the same center position.
-        ValueError
-            If required box coordinates are not initialized.
-        ValueError
-            If style is unknown and control_points is not provided.
+            If box coordinates are uninitialized or the curve cannot be constructed.
         """
 
         if (
@@ -1339,13 +1440,16 @@ class LogicTree:
                     raise ValueError(f"Unknown style '{style}'")
 
         arrow = ArrowETC(
+            ax=self.ax,
             path=path,
             arrow_head=arrow_head,
-            arrow_width=arrow_width,
+            shaft_width=shaft_width,
+            arrow_head_width_multiplier=arrow_head_width_multiplier,
+            arrow_head_length_multiplier=arrow_head_length_multiplier,
             bezier=True,
             bezier_n=n_bezier,
-            fc=fc,
-            ec=ec,
+            fc=cast(str, fc),
+            ec=cast(str, ec),
             lw=lw,
         )
         self.add_arrow(arrow)
@@ -1357,26 +1461,30 @@ class LogicTree:
         new_title: Optional[str] = None,
     ) -> None:
         """
-        Place a title on the LogicTree figure.
+        Place a title above the LogicTree figure with optional alignment and dynamic layout positioning.
+
+        This method adds a title to the top of the logic tree using the tree's bounding boxes
+        (if `consider_box_x=True`) or the full axis limits otherwise. Title alignment can be left,
+        center, or right. You may also provide a new title string inline.
 
         Parameters
         ----------
-        pos : str, optional
-            Horizontal alignment of the title; one of ['left', 'center', 'right']. Default is 'left'.
+        pos : {'left', 'center', 'right'}, optional
+            Horizontal alignment of the title. Default is 'left'.
         consider_box_x : bool, optional
-            If True, aligns the title based on box positions; otherwise aligns using xlims. Default is True.
+            If True (default), aligns the title based on LogicBox horizontal positions;
+            otherwise uses `xlims` from the Axes.
         new_title : str, optional
-            If provided, updates the LogicTree's title before placing it.
+            If given, replaces the current `self.title` string with this value before placing it.
 
         Raises
         ------
         ValueError
-            If `pos` is not one of ['left', 'center', 'right'].
+            If `pos` is invalid.
         ValueError
-            If `self.title` is None when attempting to create the title.
+            If `self.title` is None when rendering the title.
         ValueError
-            If any LogicBox in the layout is missing `xLeft` or `xRight` coordinates (if `consider_box_x=True`).
-
+            If any LogicBox lacks xLeft or xRight coordinates when `consider_box_x=True`.
         """
         if new_title is not None:
             self.title = new_title
@@ -1434,28 +1542,39 @@ class LogicTree:
             s=self.title,
             va="top",
             ha=ha,
-            fontdict=self.title_font,
+            fontdict=self.title_font_dict,
         )
 
     def save_as_png(
-        self, file_name: str, dpi: int = 800, content_padding: float = 0.0
+        self,
+        file_name: str,
+        dpi: int = 800,
+        bbox_inches: Optional[Literal["tight"]] = "tight",
+        content_padding: float = 0.0,
+        aspect: Literal["auto", "equal"] = "equal",
     ) -> None:
         """
-        Save the LogicTree diagram as a PNG file.
+        Export the LogicTree diagram as a high-resolution PNG image.
+
+        Saves the current figure with optional DPI, padding, and aspect ratio control.
+        Useful for publication or presentation-quality outputs.
 
         Parameters
         ----------
         file_name : str
-            Path and name of the output PNG file.
+            Full path and name of the output PNG file.
         dpi : int, optional
-            Resolution of the output image. Default is 800.
+            Resolution of the output image in dots per inch. Default is 800.
+        bbox_inches : {'tight'} or None, optional
+            Whether to automatically crop whitespace around the figure. Default is "tight".
         content_padding : float, optional
-            The padding in inches to place around the content. This can be helpful
-            to prevent your boxes from touching the edge of the figures.
+            Padding (in inches) around the figure content. Helps avoid clipped labels or boxes.
+        aspect : {'auto', 'equal'}, optional
+            Axes aspect ratio mode. Default is 'equal'.
         """
-        self.ax.set_aspect("equal")
+        self.ax.set_aspect(aspect)
         self.fig.savefig(
-            file_name, dpi=dpi, bbox_inches="tight", pad_inches=content_padding
+            file_name, dpi=dpi, bbox_inches=bbox_inches, pad_inches=content_padding
         )
 
 

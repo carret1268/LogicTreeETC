@@ -1,4 +1,5 @@
-"""This module defines the LogicBox class for creating labeled, stylable boxes
+"""
+This module defines the LogicBox class for creating labeled, stylable boxes
 in logic tree diagrams. Each LogicBox supports custom text, styling, and
 positioning options using matplotlib's BoxStyle.
 """
