@@ -4,18 +4,34 @@ logictree package
 Submodules
 ----------
 
-logictree.LogicBoxETC module
-----------------------------
+logictree.logicbox module
+-------------------------
 
-.. automodule:: logictree.LogicBoxETC
+.. automodule:: logictree.logicbox
    :members:
    :show-inheritance:
    :undoc-members:
 
-logictree.LogicTreeETC module
------------------------------
+logictree.arrow_etc module
+--------------------------
 
-.. automodule:: logictree.LogicTreeETC
+.. automodule:: logictree.arrow_etc
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
+logictree.logictree module
+--------------------------
+
+.. automodule:: logictree.logictree
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
+logictree.vector_detector module
+--------------------------------
+
+.. automodule:: logictree.vector_detector
    :members:
    :show-inheritance:
    :undoc-members:

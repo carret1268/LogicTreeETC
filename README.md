@@ -93,7 +93,7 @@ The `ArrowETC` class requires the final aspect ratio of your `matplotlib.axes.Ax
 A logic tree representing filtering steps in a dummy non-targeted analysis dataset.
 
 <div align="center">
-    <img src="resources/logictree_examples/DecisionTree_NTA-Example.png" width="500"/>
+    <img src="https://raw.githubusercontent.com/carret1268/LogicTreeETC/main/resources/logictree_examples/DecisionTree_NTA-Example.png" width="500"/>
 </div>
 
 Code: `examples/decision_tree-NTA-Example.py`
@@ -111,7 +111,7 @@ Features:
 This example combines a background image, automatic feature detection, and curved arrows.
 
 <div align="center">
-    <img src="resources/logictree_examples/anatomical_diagram-nephron-Example.png" width="500"/>
+    <img src="https://raw.githubusercontent.com/carret1268/LogicTreeETC/main/resources/logictree_examples/anatomical_diagram-nephron-Example.png" width="500"/>
 </div>
 
 Code: `examples/anatomical_diagram-nephron-Example.py`
@@ -121,13 +121,13 @@ Features:
 - Automatic vertex detection via `VectorDetector`
 
 <div align="center">
-    <img src="resources/vector_detector_results_from_nephron_example/nephron-verts_auto_detected-Example.png" width="400"/>
+    <img src="https://raw.githubusercontent.com/carret1268/LogicTreeETC/main/resources/vector_detector_results_from_nephron_example/nephron-verts_auto_detected-Example.png" width="400"/>
 </div>
 
 - User-labeled vertices for later access
 
 <div align="center">
-    <img src="resources/vector_detector_results_from_nephron_example/nephron-labeled_verts_auto_detected-Example.png" width="400"/>
+    <img src="https://raw.githubusercontent.com/carret1268/LogicTreeETC/main/resources/vector_detector_results_from_nephron_example/nephron-labeled_verts_auto_detected-Example.png" width="400"/>
 </div>
 
 - Curved arrows with fine-tuned styling and proportional arrowheads
@@ -139,7 +139,7 @@ Features:
 Demonstrates the normalized blackbody spectrum at 5 temperatures, highlighting Wien's law and the ultraviolet catastrophe.
 
 <div align="center">
-    <img src="resources/logictree_examples/normalized_blackbody_spectrum-Example.png" width="600"/>
+    <img src="https://raw.githubusercontent.com/carret1268/LogicTreeETC/main/resources/logictree_examples/normalized_blackbody_spectrum-Example.png" width="600"/>
 </div>
 
 Features:
@@ -156,7 +156,7 @@ Features:
 Illustrates term-by-term application of the product rule in differentiation.
 
 <div align="center">
-    <img src="resources/logictree_examples/information_flow-Calculus-Example.png" width="600"/>
+    <img src="https://raw.githubusercontent.com/carret1268/LogicTreeETC/main/resources/logictree_examples/information_flow-Calculus-Example.png" width="600"/>
 </div>
 
 Code: `examples/information_flow-calculus-Example.py`
@@ -175,43 +175,43 @@ See `examples/example_arrows.py` for all examples below.
 #### Basic arrow with head
 
 <div align="center">
-  <img src="resources/arrow_examples/basic_arrow_with_head.png" width="400"/>
+  <img src="https://raw.githubusercontent.com/carret1268/LogicTreeETC/main/resources/arrow_examples/basic_arrow_with_head.png" width="400"/>
 </div>
 
 #### Multi-segment arrow with head
 
 <div align="center">
-  <img src="resources/arrow_examples/multi_segment_arrow_with_head.png" width="500"/>
+  <img src="https://raw.githubusercontent.com/carret1268/LogicTreeETC/main/resources/arrow_examples/multi_segment_arrow_with_head.png" width="400"/>
 </div>
 
 #### Obtuse angle arrow
 
 <div align="center">
-  <img src="resources/arrow_examples/obtuse_arrow_with_head.png" width="500"/>
+  <img src="https://raw.githubusercontent.com/carret1268/LogicTreeETC/main/resources/arrow_examples/obtuse_arrow_with_head.png" width="400"/>
 </div>
 
 #### Acute angle arrow
 
 <div align="center">
-  <img src="resources/arrow_examples/acute_arrow_with_head.png"/>
+  <img src="https://raw.githubusercontent.com/carret1268/LogicTreeETC/main/resources/arrow_examples/acute_arrow_with_head.png" width="400"/>
 </div>
 
 #### Complex multi-segmented arrow
 
 <div align="center">
-  <img src="resources/arrow_examples/many_segments_with_head.png"/>
+  <img src="https://raw.githubusercontent.com/carret1268/LogicTreeETC/main/resources/arrow_examples/many_segments_with_head.png" width="400"/>
 </div>
 
 #### Basic Bezier arrow
 
 <div align="center">
-  <img src="resources/arrow_examples/basic_bezier_with_head.png"/>
+  <img src="https://raw.githubusercontent.com/carret1268/LogicTreeETC/main/resources/arrow_examples/basic_bezier_with_head.png" width="400"/>
 </div>
 
 #### Complex Bezier arrow
 
 <div align="center">
-  <img src="resources/arrow_examples/crazier_bezier_with_head.png"/>
+  <img src="https://raw.githubusercontent.com/carret1268/LogicTreeETC/main/resources/arrow_examples/crazier_bezier_with_head.png" width=400/>
 </div>
 
 ---
