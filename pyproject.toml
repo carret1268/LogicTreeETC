@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "LogicTreeETC"
-version = "0.1.1"
+version = "0.1.2"
 description = "A package for easily creating publication ready logic trees"
 authors = [
     { name="E. Tyler Carr", email="carret1268@gmail.com" }
@@ -32,7 +32,7 @@ classifiers = [
 include-package-data = true
 
 [tool.setuptools.packages.find]
-where = ["logictree"]
+where = ["."]
 
 [tool.setuptools.package-data]
 "logictree" = ["fonts/*.ttf"]
