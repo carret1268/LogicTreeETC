@@ -38,7 +38,8 @@ detector.plot_labeled_points("outputs/labeled_points.png")
 ```
 """
 
-from typing import Literal, Optional, Tuple
+from pathlib import Path
+from typing import Literal, Optional, Tuple, Union
 
 import cv2
 from matplotlib import colormaps
@@ -46,6 +47,8 @@ import matplotlib.cm as cm  # For ScalarMappable
 import matplotlib.colors as mcolors
 from matplotlib.pyplot import colorbar, close, subplots
 import numpy as np
+
+PathType = Union[Path, str]
 
 
 class VectorDetector:
@@ -185,18 +188,68 @@ class VectorDetector:
         return x_scaled, y_scaled
 
     def label_point(self, index: int, label: str) -> None:
+        """
+        Assigns a label to a previously detected point by index.
+
+        Parameters
+        ----------
+        index : int
+            The index of the detected point in `self.points`.
+        label : str
+            A user-defined string label to assign to the selected point.
+
+        Raises
+        ------
+        IndexError
+            If the provided index is out of range for the list of detected points.
+        """
         if 0 <= index < len(self.points):
             self.labels[label] = self.points[index]
         else:
             raise IndexError("Point index out of range.")
 
     def get_point_by_label(self, label: str) -> Optional[Tuple[float, float]]:
+        """
+        Retrieves the coordinates of a labeled point.
+
+        Parameters
+        ----------
+        label : str
+            The user-defined label assigned to a point.
+
+        Returns
+        -------
+        tuple[float, float] or None
+            The (x, y) coordinates of the labeled point, or None if the label is not found.
+        """
         return self.labels.get(label)
 
     def list_labeled_points(self) -> dict[str, Tuple[float, float]]:
+        """
+        Returns a dictionary of all user-labeled points.
+
+        Returns
+        -------
+        dict[str, tuple[float, float]]
+            A copy of the internal label-to-point mapping.
+        """
         return self.labels.copy()
 
-    def plot_detected_points(self, save_path: str) -> None:
+    def plot_detected_points(self, save_path: PathType) -> None:
+        """
+        Visualizes all detected feature points with numeric labels and saves the plot.
+
+        Parameters
+        ----------
+        save_path : str | Path
+            File path where the output figure will be saved (e.g., 'outputs/all_detected.png').
+
+        Notes
+        -----
+        Each detected point is colored and numbered in the colorbar legend.
+        The image background will reflect the original image with optional extent mapping.
+        """
+        save_path = Path(save_path).resolve()
         fig, ax = subplots()
 
         if self.extent:
@@ -229,7 +282,7 @@ class VectorDetector:
 
     def plot_labeled_points(
         self,
-        save_path: str,
+        save_path: PathType,
         legend_loc: Literal[
             "best",
             "upper right",
@@ -244,9 +297,25 @@ class VectorDetector:
             "center",
         ] = "best",
     ) -> None:
+        """
+        Plots only the points that have been user-labeled and saves the image.
+
+        Parameters
+        ----------
+        save_path : str | Path
+            File path where the output figure will be saved (e.g., 'outputs/labeled_points.png').
+        legend_loc : str, optional
+            Location of the legend in the plot. Defaults to "best".
+
+        Notes
+        -----
+        Each labeled point is assigned a color and displayed with its label in the legend.
+        """
         if not self.labels:
             print("No labeled points to plot.")
             return
+
+        save_path = Path(save_path).resolve()
 
         fig, ax = subplots()
 
