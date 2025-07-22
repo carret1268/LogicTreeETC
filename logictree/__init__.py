@@ -8,7 +8,7 @@ Modules:
 See the documentation for details and examples.
 """
 
-__version__ = "0.1.0"
+__version__ = "0.1.2"
 __author__ = "E. Tyler Carr"
 __email__ = "carret1268@gmail.com"
 __license__ = "CC0 1.0 Universal"
